@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, redirect, url_for, flash
+from flask import Flask, request, send_file, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
 import click
 import psutil
@@ -6,10 +6,11 @@ import shutil
 import platform
 import os
 import tomllib
+import subprocess
 from impsy.dataset import generate_dataset
 from pathlib import Path
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
 app.secret_key = "impsywebui"
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,10 +30,6 @@ ROUTE_NAMES = {
     'datasets': 'Dataset Files',
 }
 
-@app.template_filter("startswith")
-def test_startswith(s, start):
-    return s.startswith(start)
-
 def get_hardware_info():
     try:
         cpu_info = platform.machine()
@@ -44,7 +41,6 @@ def get_hardware_info():
         disk = disk_usage.free / (1024 ** 3)
         disk_percent = 100 * disk_usage.used / disk_usage.total
         os_info = f"{platform.system()} {platform.release()}"
-        print(psutil.disk_usage('/'))
         return {
             "CPU": cpu_info,
             "CPU Cores": cpu_cores,
@@ -54,7 +50,7 @@ def get_hardware_info():
         }
     except Exception as e:
         return {"Error": str(e)}
-    
+
 def get_software_info():
     with open("pyproject.toml", "rb") as f:
         pyproject_data = tomllib.load(f)
@@ -67,7 +63,6 @@ def get_software_info():
         "Repository": pyproject_data["tool"]["poetry"].get("repository"),
     }
 
-
 def allowed_model_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'keras', 'h5', 'tflite'} 
 
@@ -76,7 +71,6 @@ def allowed_log_file(filename):
 
 def allowed_dataset_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'npz'} 
-
 
 def get_routes():
     page_routes = []
@@ -88,53 +82,111 @@ def get_routes():
             })
     return page_routes
 
-@app.route('/')
-def index():
-    routes = get_routes()
-    hardware_info = get_hardware_info()
-    software_info = get_software_info()
-    return render_template('index.html', routes=routes, route_names=ROUTE_NAMES, hardware_info=hardware_info, software_info=software_info)
+# Refreshing within the React app will cause a 404 error (still not resolved yet)
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def catch_all(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/logs')
+@app.route('/api/hardware-info')
+def api_hardware_info():
+    return jsonify(get_hardware_info())
+
+@app.route('/api/software-info')
+def api_software_info():
+    return jsonify(get_software_info())
+
+@app.route('/api/routes')
+def api_routes():
+    return jsonify([{
+        'endpoint': route.endpoint,
+        'route': route.rule,
+        'name': ROUTE_NAMES.get(route.endpoint, route.endpoint)
+    } for route in app.url_map.iter_rules()])
+
+
+@app.route('/api/logs', methods=['GET', 'POST'])
 def logs():
-    log_files = [f for f in os.listdir(LOGS_DIR) if allowed_log_file(f)]
-    return render_template('logs.html', log_files=log_files)
+    log_files = [f for f in os.listdir(LOGS_DIR) if f.endswith('.log')]
+    return jsonify(log_files)
 
-@app.route('/datasets', methods=['GET', 'POST'])
+@app.route('/api/datasets', methods=['GET', 'POST'])
 def datasets():
-    new_dataset = None
+    response = {
+        'datasets': [],
+        'messages': []
+    }
     if request.method == 'POST':
-        dimension = request.form.get('dimension', type=int)
+        data = request.get_json()  # Get data as JSON
+        dimension = data.get('dimension')
         if dimension:
             try:
                 new_dataset_path = generate_dataset(dimension, source=LOGS_DIR, destination=DATASET_DIR)
-                # return redirect(url_for('datasets'))
-                new_dataset = os.path.basename(new_dataset_path)
-                flash(f"Dataset with dimension {dimension} generated successfully!", "success")
+                response['datasets'].append(os.path.basename(new_dataset_path))
+                response['messages'].append(f"Dataset with dimension {dimension} generated successfully!")
             except Exception as e:
-                flash(f"Error generating dataset: {str(e)}", "error")
-            print(f"New dataset {new_dataset}")
-            return redirect(url_for('datasets', new_dataset=new_dataset))
-    dataset_files = [f for f in os.listdir(DATASET_DIR) if allowed_dataset_file(f)]
-    # print(dataset_files)
-    new_dataset = request.args.get('new_dataset')
-    return render_template('datasets.html', dataset_files=dataset_files, new_dataset=new_dataset)
+                response['messages'].append(f"Error generating dataset: {str(e)}")
+    # Always send dataset files, even on POST to update the list
+    response['datasets'].extend([f for f in os.listdir(DATASET_DIR) if f.endswith('.npz')])
+    return jsonify(response)
 
-@app.route('/models', methods=['GET', 'POST'])
+@app.route('/api/models', methods=['GET', 'POST'])
 def models():
     if request.method == 'POST':
-        if 'file' not in request.files:
-            return redirect(request.url)
-        file = request.files['file']
-        if file.filename == '':
-            return redirect(request.url)
-        if file and allowed_model_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(MODEL_DIR, filename))
-            return redirect(url_for('models'))
+        file = request.files.get('file')
+        if not file or file.filename == '':
+            return jsonify({'error': 'No file provided or empty filename'}), 400
+        if not allowed_model_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+
+        filename = secure_filename(file.filename)
+        try:
+            file_path = os.path.join(MODEL_DIR, filename)
+            file.save(file_path)
+            return jsonify({'message': 'File uploaded successfully', 'file_path': file_path}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    model_files = [f for f in os.listdir(MODEL_DIR) if f.endswith('.h5') or f.endswith('.tflite')]
+    return jsonify(model_files)
+
+# @app.route('/models', methods=['GET', 'POST'])
+# def models():
+#     if request.method == 'POST':
+#         if 'file' not in request.files:
+#             return redirect(request.url)
+#         file = request.files['file']
+#         if file.filename == '':
+#             return redirect(request.url)
+#         if file and allowed_model_file(file.filename):
+#             filename = secure_filename(file.filename)
+#             file.save(os.path.join(MODEL_DIR, filename))
+#             return redirect(url_for('models'))
     
-    model_files = [f for f in os.listdir(MODEL_DIR) if allowed_model_file(f)]
-    return render_template('models.html', model_files=model_files)
+#     model_files = [f for f in os.listdir(MODEL_DIR) if allowed_model_file(f)]
+#     return render_template('models.html', model_files=model_files)
+
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    with open(CONFIG_FILE, 'r') as f:
+        config_content = f.read()
+    return jsonify({'config_content': config_content})
+
+@app.route('/api/config', methods=['POST'])
+def update_config():
+    config_content = request.json.get('config_content')
+    if config_content is not None:
+        try:
+            with open(CONFIG_FILE, 'w') as f:
+                f.write(config_content)
+            return jsonify({'message': 'Config saved successfully'}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    return jsonify({'error': 'Invalid data'}), 400
 
 @app.route('/download_log/<filename>')
 def download_log(filename):
@@ -148,29 +200,23 @@ def download_model(filename):
 def download_dataset(filename):
     return send_file(os.path.join(DATASET_DIR, filename), as_attachment=True)
 
-@app.route('/config', methods=['GET', 'POST'])
-def edit_config():
-    if request.method == 'POST':
-        # Save the edited config file
-        with open(CONFIG_FILE, 'w') as f:
-            f.write(request.form['config_content'])
-        return 'Config saved successfully'
-    else:
-        # Display the config file for editing
-        with open(CONFIG_FILE, 'r') as f:
-            config_content = f.read()
-        return render_template('edit_config.html', config_content=config_content)
 
-def run_web_interface(host=DEFAULT_HOST, port=DEFAULT_PORT, debug=True):
-    """Runs the Flask web interface."""
-    click.secho(f'Starting web interface at http://{host}:{port}', fg='blue')
-    click.secho(f'Log path: {LOGS_DIR}', fg='blue')
-    app.run(host=host, port=port, debug=True)
 
-@click.command(name="webui")
+
+
+
+
+@click.command()
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')
 @click.option('--port', default=DEFAULT_PORT, help='The port to bind to.')
-@click.option('--debug', is_flag=True, help='Enable debug mode.')
-def webui(host, port, debug):
-    """Run IMPSY Web UI giving access to files and other commands."""
-    run_web_interface(host, port, debug)
+@click.option('--debug', is_flag=True, help='Run in debug mode.')
+@click.option('--dev', is_flag=True, help='Run in development mode with React')
+def webui(host, port, debug, dev):
+    click.secho(f'Starting web interface at http://{host}:{port}', fg='blue')
+    click.secho(f'Log path: {LOGS_DIR}', fg='blue')
+    if dev:
+        subprocess.Popen(['npm', 'start'], cwd='./frontend')
+    app.run(host=host, port=port, debug=debug)
+
+if __name__ == "__main__":
+    webui()
