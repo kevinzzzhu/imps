@@ -346,6 +346,7 @@ class OSCServer(IOServer):
         click.secho(f"- Server Port: {config['osc']['server_port']}", fg="yellow")
         click.secho(f"- Client IP: {config['osc']['client_ip']}", fg="yellow")
         click.secho(f"- Client Port: {config['osc']['client_port']}", fg="yellow")        
+        
         # Set up OSC client and server
         self.dimension = config["model"][
             "dimension"

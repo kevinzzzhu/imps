@@ -31,8 +31,8 @@ const MainContent = styled.div`
 `;
 
 function Home() {
-    const [inputData, setInputData] = useState([0.1, 0.2, 0.5, 0.4, 0.6, 0.1, 0.4, 0.25, 0.8822, 0.12, 0.02, 0, 0.65]);
-    const [outputData, setOutputData] = useState([0.1, 0.2, 0.5, 0.4, 0.6, 0.1, 0.4, 0.25, 0.8822, 0.12, 0.02, 0, 0.65]);
+    const [inputData, setInputData] = useState([]);
+    const [outputData, setOutputData] = useState([]);
     const [logFiles, setLogFiles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [wsStatus, setWsStatus] = useState('Connecting...');
