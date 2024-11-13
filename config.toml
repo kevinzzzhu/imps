@@ -18,13 +18,8 @@ input_thru = false # sends inputs directly to outputs (e.g., if input interface 
 
 # Model configuration
 [model]
-<<<<<<< HEAD
 dimension = 4
 file = "models/musicMDRNN-dim4-layers2-units64-mixtures5-scale10.h5"
-=======
-dimension = 9
-file = "models/musicMDRNN-dim9-layers2-units64-mixtures5-scale10.tflite"
->>>>>>> ff98473fd46620c658c5c0b8f89285fac81accbc
 size = "s" # Can be one of: xs, s, m, l, xl
 sigmatemp = 0.01
 pitemp = 1
