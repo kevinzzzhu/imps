@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Audio } from 'react-loader-spinner'; // Assuming this is already installed
+import { Audio } from 'react-loader-spinner';
 
 function Config() {
     const [configContent, setConfigContent] = useState('');

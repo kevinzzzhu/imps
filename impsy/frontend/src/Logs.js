@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Audio } from 'react-loader-spinner';  // Ensure you have this component imported
+import { Audio } from 'react-loader-spinner'; 
 import './styles/styles.css';
 
 function Logs() {
