@@ -54,7 +54,21 @@ function Home() {
     };
 
     useEffect(() => {
-        // Connect to WebSocket server
+        // Fetch log files
+        const fetchLogFiles = async () => {
+            try {
+                const response = await axios.get('/api/logs');
+                setLogFiles(response.data);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching log files:', error);
+                setLoading(false);
+            }
+        };
+
+        fetchLogFiles();
+
+        // WebSocket connection
         const ws = new WebSocket('ws://localhost:8080');
         
         ws.onopen = () => {
@@ -63,11 +77,17 @@ function Home() {
         };
 
         ws.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            if (message.type === 'input') {
-                setInputData(message.data);
-            } else if (message.type === 'output') {
-                setOutputData(message.data);
+            try {
+                const message = JSON.parse(event.data);
+                console.log('Received message:', message);
+                
+                if (message.type === 'input') {
+                    setInputData(message.data);
+                } else if (message.type === 'output') {
+                    setOutputData(message.data);
+                }
+            } catch (error) {
+                console.error('Error processing message:', error);
             }
         };
 
@@ -81,7 +101,7 @@ function Home() {
             setWsStatus('Disconnected');
         };
 
-        // Cleanup on unmount
+        // Cleanup
         return () => {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.close();

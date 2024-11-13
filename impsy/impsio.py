@@ -336,8 +336,16 @@ class OSCServer(IOServer):
     TEMPERATURE_MESSAGE_ADDRESS = "/temperature"
     TIMESCALE_MESSAGE_ADDRESS = "/timescale"
 
+
     def __init__(self, config, callback, dense_callback) -> None:
         super().__init__(config, callback, dense_callback)
+
+        # Log configuration
+        click.secho(f"OSC Configuration:", fg="yellow")
+        click.secho(f"- Server IP: {config['osc']['server_ip']}", fg="yellow")
+        click.secho(f"- Server Port: {config['osc']['server_port']}", fg="yellow")
+        click.secho(f"- Client IP: {config['osc']['client_ip']}", fg="yellow")
+        click.secho(f"- Client Port: {config['osc']['client_port']}", fg="yellow")        
         # Set up OSC client and server
         self.dimension = config["model"][
             "dimension"

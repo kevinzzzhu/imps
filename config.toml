@@ -60,10 +60,11 @@ server_ip = "localhost" # Address of IMPSY
 server_port = 5000 # Port IMPSY listens on
 client_ip = "localhost" # Address of the output device
 client_port = 5002 # Port of the output device
-host = "0.0.0.0"
-
-[server]
-http_port = 3001
-websocket_port = 8080
 
 # try regular unix socket not websocket
+
+# Backend → Port 5002 → Server → Port 5003 → Device 
+#                             └→ WebSocket (8080) → Frontend 
+
+# Device → Port 5004 → Server → Port 5000 → Backend
+#                             └→ WebSocket (8080) → Frontend 

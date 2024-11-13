@@ -1,4 +1,4 @@
-#N canvas 267 290 540 550 12;
+#N canvas 269 219 540 550 12;
 #X obj 78 50 vsl 50 160 0 127 0 0 impsyin1 empty empty 0 -9 0 12 #ffc7c6 #000000 #000000 0 1;
 #X obj 137 50 vsl 50 160 0 127 0 0 impsyin2 empty empty 0 -9 0 12 #ffe3c6 #000000 #000000 0 1;
 #X obj 199 50 vsl 50 160 0 127 0 0 impsyin3 empty empty 0 -9 0 12 #feffc6 #000000 #000000 0 1;
@@ -87,7 +87,7 @@
 #X connect 7 0 0 0;
 #X connect 7 0 0 1;
 #X restore 334 449 pd synth;
-#N canvas 831 278 681 449 receive-osc 1;
+#N canvas 831 203 681 449 receive-osc 1;
 #X obj 58 96 oscparse;
 #X obj 58 74 netreceive -u -b;
 #X obj 54 115 list trim;
@@ -110,7 +110,7 @@
 #X msg 308 139 listen 0;
 #X msg 308 169 0;
 #X msg 393 175 1;
-#X msg 58 50 listen 5002;
+#X msg 58 50 listen 5003;
 #X connect 0 0 2 0;
 #X connect 1 0 0 0;
 #X connect 2 0 3 0;
@@ -126,8 +126,8 @@
 #X connect 11 0 7 0;
 #X connect 13 0 19 0;
 #X connect 13 0 14 0;
-#X connect 14 0 22 0;
 #X connect 14 0 21 0;
+#X connect 14 0 22 0;
 #X connect 17 0 16 0;
 #X connect 17 0 18 0;
 #X connect 19 0 1 0;
@@ -167,7 +167,7 @@
 #X obj 350 387 r reconnect;
 #X msg 299 450 disconnect;
 #X obj 397 419 delay 500;
-#X msg 298 524 connect 127.0.0.1 5000;
+#X msg 298 524 connect 127.0.0.1 5004;
 #X connect 0 0 24 0;
 #X connect 1 0 2 0;
 #X connect 2 0 0 0;
