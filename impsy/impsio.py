@@ -70,7 +70,10 @@ class SerialServer(IOServer):
         # click.secho(f"Serial out: {output_message}")
         if self.serial is not None:
             self.serial.write(output_message.encode())
-    
+        else: 
+            # try to reconnect -- may as well, alternative is just never working.
+            self.connect()
+
 
     def handle(self) -> None:
         """read in the serial bytes and process lines into value lists for IMPSY"""
@@ -80,7 +83,10 @@ class SerialServer(IOServer):
         
         # first read in the serial bytes in waiting
         while self.serial.in_waiting:
-            self.buffer += self.serial.read(self.serial.in_waiting).decode()
+            try:
+                self.buffer += self.serial.read(self.serial.in_waiting).decode()
+            except Exception as e:
+                click.secho(f"Serial: error decoding input {e}")
         
         # process lines into values.
         while '\n' in self.buffer:
@@ -394,7 +400,10 @@ class OSCServer(IOServer):
             self.server.socket.close()
 
     def send(self, output_values) -> None:
-        self.osc_client.send_message(OSCServer.OUTPUT_MESSAGE_ADDRESS, output_values)
+        try:
+            self.osc_client.send_message(OSCServer.OUTPUT_MESSAGE_ADDRESS, output_values)
+        except Exception as e:
+            click.secho(f"OSC sending failed: {e}", fg="red")
 
     def handle(self) -> None:
         return super().handle()
