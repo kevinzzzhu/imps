@@ -254,7 +254,7 @@ def webui(host, port, debug, dev):
     osc_thread.start()
     
     if dev:
-        subprocess.Popen(['npm', 'start'], cwd='./frontend')
+        subprocess.Popen(['npm', 'start'], cwd='./impsy/frontend')
     
     # Run Flask app
     app.run(host=host, port=port, debug=debug)
