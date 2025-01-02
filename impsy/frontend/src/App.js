@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import { IconButton } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import TogglableMenu from './components/Menu';
-import Datasets from './datasets';
+import Datasets from './Datasets';
 import Home from './Home';
 import Configs from './Config';
 import Logs from './Logs';

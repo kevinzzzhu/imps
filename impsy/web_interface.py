@@ -9,6 +9,8 @@ import tomllib
 import subprocess
 from impsy.dataset import generate_dataset
 from pathlib import Path
+from impsy.osc_server import IMPSYOSCServer
+import asyncio
 
 app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
 app.secret_key = "impsywebui"
@@ -234,10 +236,27 @@ def download_dataset(filename):
 @click.option('--debug', is_flag=True, help='Run in debug mode.')
 @click.option('--dev', is_flag=True, help='Run in development mode with React')
 def webui(host, port, debug, dev):
-    click.secho(f'Starting web interface at http://{host}:{port}', fg='blue')
-    click.secho(f'Log path: {LOGS_DIR}', fg='blue')
+    print("Starting IMPSY web interface...")
+    
+    # Create and run event loop in a separate thread
+    def run_async_server():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Create a new OSC server instance in this thread
+        thread_osc_server = IMPSYOSCServer()
+        loop.run_until_complete(thread_osc_server.start())
+        loop.run_forever()
+    
+    # Start OSC server in a separate thread
+    import threading
+    osc_thread = threading.Thread(target=run_async_server, daemon=True)
+    osc_thread.start()
+    
     if dev:
         subprocess.Popen(['npm', 'start'], cwd='./frontend')
+    
+    # Run Flask app
     app.run(host=host, port=port, debug=debug)
 
 if __name__ == "__main__":
