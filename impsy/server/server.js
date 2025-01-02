@@ -35,13 +35,13 @@ wss.on('connection', (ws) => {
 // Handle messages from backend (Port 5002)
 backendServer.on('message', (msg) => {
     try {
-        console.log('Message received from backend:', msg);
+        // console.log('Message received from backend:', msg);
         const address = msg[0];
         const values = msg.slice(1);
         
         // Forward to device on port 5003
         deviceClient.send(address, ...values, () => {
-            console.log('Forwarded to device on port 5003');
+            // console.log('Forwarded to device on port 5003');
         });
 
         // Send to frontend via WebSocket
@@ -54,20 +54,20 @@ backendServer.on('message', (msg) => {
             }
         });
     } catch (error) {
-        console.error('Error processing backend message:', error);
+        // console.error('Error processing backend message:', error);
     }
 });
 
 // Handle messages from device (Port 5004)
 deviceServer.on('message', (msg) => {
     try {
-        console.log('Message received from device:', msg);
+        // console.log('Message received from device:', msg);
         const address = msg[0];
         const values = msg.slice(1);
         
         // Forward to backend on port 5000
         backendClient.send(address, ...values, () => {
-            console.log('Forwarded to backend on port 5000');
+            // console.log('Forwarded to backend on port 5000');
         });
 
         // Send to frontend via WebSocket
@@ -87,14 +87,14 @@ deviceServer.on('message', (msg) => {
 // Start HTTP server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log('\nServer Configuration:');
-    console.log(`- HTTP server running on port ${PORT}`);
-    console.log('- WebSocket server on port 8080');
-    console.log('\nOSC Configuration:');
-    console.log('- Receiving from backend on port 5002');
-    console.log('- Receiving from device on port 5004');
-    console.log('- Forwarding to device on port 5003');
-    console.log('- Forwarding to backend on port 5000');
+    // console.log('\nServer Configuration:');
+    // console.log(`- HTTP server running on port ${PORT}`);
+    // console.log('- WebSocket server on port 8080');
+    // console.log('\nOSC Configuration:');
+    // console.log('- Receiving from backend on port 5002');
+    // console.log('- Receiving from device on port 5004');
+    // console.log('- Forwarding to device on port 5003');
+    // console.log('- Forwarding to backend on port 5000');
 });
 
 // Cleanup on server shutdown

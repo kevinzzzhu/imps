@@ -19,6 +19,7 @@ LOGS_DIR = PROJECT_ROOT / 'logs'
 MODEL_DIR = PROJECT_ROOT / 'models'
 DATASET_DIR = PROJECT_ROOT / 'datasets'
 CONFIGS_DIR = PROJECT_ROOT / 'configs'
+app.config['LOG_FOLDER'] = LOGS_DIR
 CONFIG_FILE = 'config.toml'
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 4000
@@ -112,6 +113,27 @@ def api_routes():
 def logs():
     log_files = [f for f in os.listdir(LOGS_DIR) if f.endswith('.log')]
     return jsonify(log_files)
+
+@app.route('/api/logs/<filename>')
+def get_log_content(filename):
+    try:
+        # Ensure the filename is safe
+        safe_filename = secure_filename(filename)
+        log_path = os.path.join(LOGS_DIR, safe_filename)
+        
+        # Check if file exists
+        if not os.path.exists(log_path):
+            return jsonify({'error': 'File not found'}), 404
+            
+        # Check if path is within LOGS_DIR
+        if not os.path.commonpath([os.path.abspath(log_path), str(LOGS_DIR)]) == str(LOGS_DIR):
+            return jsonify({'error': 'Invalid file path'}), 403
+            
+        with open(log_path, 'r') as file:
+            content = file.read()
+        return jsonify(content)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/datasets', methods=['GET', 'POST'])
 def datasets():

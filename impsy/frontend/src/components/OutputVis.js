@@ -136,31 +136,6 @@ const OutputVisualization = ({data}) => {
                 exit => exit.remove()
             );
 
-        // Add tooltips
-        const tooltip = d3.select("body").append("div")
-            .attr("class", "tooltip")
-            .style("opacity", 0)
-            .style("position", "absolute")
-            .style("background-color", "white")
-            .style("border", "1px solid black")
-            .style("padding", "5px")
-            .style("border-radius", "5px");
-
-        svg.selectAll("rect")
-            .on("mouseover", (event, d) => {
-                tooltip.transition()
-                    .duration(100)
-                    .style("opacity", .9);
-                tooltip.html(`Value: ${d.toFixed(3)}`)
-                    .style("left", (event.pageX + 10) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-            })
-            .on("mouseout", () => {
-                tooltip.transition()
-                    .duration(200)
-                    .style("opacity", 0);
-            });
-
         // Add grid lines behind
         svg.append("g")
             .attr("class", "grid")
@@ -181,7 +156,7 @@ const OutputVisualization = ({data}) => {
         svg.append("g")
             .call(d3.axisLeft(yScale)
                 .ticks(5)
-                .tickFormat(d3.format(".0%"))); // Format as percentage
+                .tickFormat(d3.format(".0%")));
 
         // Add labels
         svg.append("text")

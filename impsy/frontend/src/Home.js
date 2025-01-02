@@ -6,6 +6,12 @@ import { Typography, List, ListItem, Box, Modal, Paper } from '@mui/material';
 import InputVis from './components/InputVis';
 import OutputVis from './components/OutputVis';
 import { Audio } from 'react-loader-spinner'; // loading animation
+import TimeSeriesGraph from './components/TimeSeriesGraph';
+import DelaunayGraph from './components/DelaunayGraph';
+import SplomGraph from './components/SplomGraph';
+import ParallelGraph from './components/ParallelGraph';
+import ViolinGraph from './components/ViolinGraph';
+import OscillationGraph from './components/OscillationGraph';
 
 const Container = styled.div`
   display: flex;
@@ -18,8 +24,41 @@ const LogList = styled.div`
   width: 250px;
   background-color: #f4f4f4;
   padding: 20px;
-  overflow-y: auto;
   flex-shrink: 0;
+  height: 80vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const LogListContent = styled.div`
+  overflow-y: auto;
+  flex-grow: 1;
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+
+  button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s, opacity 0.2s;
+
+    &:hover:not(:disabled) {
+      background-color: #0056b3;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
 `;
 
 const MainContent = styled.div`
@@ -30,7 +69,6 @@ const MainContent = styled.div`
   align-items: center;
 `;
 
-// Add styled components for the modal
 const StyledModal = styled(Modal)`
   display: flex;
   align-items: center;
@@ -62,6 +100,61 @@ const CloseButton = styled.button`
   }
 `;
 
+const LogItem = styled(ListItem)`
+    &:hover {
+        background-color: #e0e0e0;
+    }
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    input[type="checkbox"] {
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+    }
+`;
+
+const parseLogData = (content) => {
+    try {
+        const lines = content.trim().split('\n');
+        const data = {
+            dimension: 0,
+            samples: []  // Array of complete data points
+        };
+        
+        lines.forEach(line => {
+            const [timestamp, source, ...values] = line.split(',');
+            if (source === 'interface') {
+                const numericValues = values.map(v => parseFloat(v));
+                data.samples.push({
+                    timestamp: new Date(timestamp),
+                    source: source,
+                    values: numericValues
+                });
+                
+                // Set dimension based on first valid entry
+                if (data.dimension === 0) {
+                    data.dimension = numericValues.length;
+                }
+            }
+        });
+        
+        return {
+            ...data,
+            totalSamples: data.samples.length,
+            timeRange: {
+                start: data.samples[0]?.timestamp,
+                end: data.samples[data.samples.length - 1]?.timestamp
+            }
+        };
+    } catch (error) {
+        console.error('Error parsing log data:', error);
+        return null;
+    }
+};
+
 function Home() {
     const [inputData, setInputData] = useState([]);
     const [outputData, setOutputData] = useState([]);
@@ -71,6 +164,8 @@ function Home() {
     const [selectedLog, setSelectedLog] = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [logContent, setLogContent] = useState('');
+    const [logData, setLogData] = useState(null);
+    const [selectedLogs, setSelectedLogs] = useState([]);
 
     useEffect(() => {
         fetchLogFiles();
@@ -143,28 +238,43 @@ function Home() {
         };
     }, []);
 
-    const parseLogContent = (content) => {
-        const lines = content.split('\n').filter(line => line.trim());
-        return lines.map(line => {
-            const [timestamp, source, ...values] = line.split(',');
-            return {
-                timestamp,
-                source,
-                values: values.map(v => parseFloat(v))
-            };
-        });
-    };
-
-    // Modify fetchLogContent
+    // Add function to fetch log content
     const fetchLogContent = async (filename) => {
         try {
-            const response = await fetch(`/logs/${filename}`);
-            const text = await response.text();
-            const parsedData = parseLogContent(text);
-            setLogContent(JSON.stringify(parsedData, null, 2));
-            setModalOpen(true);
+            setLogContent("Loading..."); 
+            setModalOpen(true);  
+            
+            const response = await axios.get(`/api/logs/${filename}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.data && response.data.error) {
+                const errorMsg = `Server Error: ${response.data.error}`;
+                console.error(errorMsg);
+                setLogContent(errorMsg);
+            } else {
+                const parsedData = parseLogData(response.data);
+                if (parsedData) {
+                    setLogContent(
+                        `Dimension: ${parsedData.dimension}\n` +
+                        `Total Samples: ${parsedData.totalSamples}\n` +
+                        `Time Range: ${parsedData.timeRange.start.toLocaleString()} - ` +
+                        `${parsedData.timeRange.end.toLocaleString()}\n\n` +
+                        `Raw Data:\n${response.data}`
+                    );
+                    // Store parsed data for visualization
+                    setLogData(parsedData);
+                } else {
+                    setLogContent("Error parsing log data");
+                }
+            }
         } catch (error) {
-            console.error('Failed to fetch log content:', error);
+            const errorMsg = `Error loading log file: ${error.message}\nDetails: ${JSON.stringify(error.response?.data || {}, null, 2)}`;
+            console.error(errorMsg);
+            setLogContent(errorMsg);
         }
     };
 
@@ -174,30 +284,81 @@ function Home() {
         fetchLogContent(filename);
     };
 
+    // Add handler for checkbox changes
+    const handleCheckboxChange = (filename) => {
+        setSelectedLogs(prev => {
+            if (prev.includes(filename)) {
+                return prev.filter(f => f !== filename);
+            } else {
+                return [...prev, filename];
+            }
+        });
+    };
+
+    // Add handler for train button
+    const handleTrain = async () => {
+        if (selectedLogs.length === 0) {
+            alert('Please select at least one log file');
+            return;
+        }
+
+        try {
+            const response = await axios.post('/api/train', {
+                logFiles: selectedLogs
+            });
+            alert('Training started successfully!');
+        } catch (error) {
+            console.error('Error starting training:', error);
+            alert('Failed to start training');
+        }
+    };
+
     return (
         <Container>
             <LogList>
                 <Typography variant="h6" gutterBottom>Select Log Files</Typography>
-                {loading ? (
-                    <Audio height="80" width="80" color="green" ariaLabel="loading" />
-                ) : logFiles.length > 0 ? (
-                    <List>
-                        {logFiles.map((file, index) => (
-                            <ListItem 
-                                button 
-                                key={index} 
-                                onClick={() => handleLogClick(file)}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                {file}
-                            </ListItem>
-                        ))}
-                    </List>
-                ) : (
-                    <p>No log files found.</p>
-                )}
-                <button>Import</button>
-                <button>Train</button>
+                <LogListContent>
+                    {loading ? (
+                        <Audio height="80" width="80" color="green" ariaLabel="loading" />
+                    ) : logFiles.length > 0 ? (
+                        <List>
+                            {logFiles.map((file, index) => (
+                                <LogItem 
+                                    button 
+                                    key={index} 
+                                    onClick={() => handleLogClick(file)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedLogs.includes(file)}
+                                        onChange={(e) => {
+                                            e.stopPropagation();
+                                            handleCheckboxChange(file);
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    {file}
+                                </LogItem>
+                            ))}
+                        </List>
+                    ) : (
+                        <p>No log files found.</p>
+                    )}
+                </LogListContent>
+                <ButtonContainer>
+                    <button>Import</button>
+                    <button 
+                        onClick={handleTrain}
+                        disabled={selectedLogs.length === 0}
+                        style={{
+                            opacity: selectedLogs.length === 0 ? 0.5 : 1,
+                            cursor: selectedLogs.length === 0 ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        Train
+                    </button>
+                </ButtonContainer>
             </LogList>
 
             {/* Add Modal */}
@@ -213,7 +374,41 @@ function Home() {
                     <Typography variant="h6" id="log-modal-title" gutterBottom>
                         {selectedLog}
                     </Typography>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>Basic View</Typography>
+                            {logData && <TimeSeriesGraph data={logData} />}
+                        </Box>
+                        
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>Delaunay View</Typography>
+                            {logData && <DelaunayGraph data={logData} />}
+                        </Box>
+
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>Splom View</Typography>
+                            {logData && <SplomGraph data={logData} />}
+                        </Box>
+
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>Parallel View</Typography>
+                            {logData && <ParallelGraph data={logData} />}
+                        </Box>
+
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>Violin View</Typography>
+                            {logData && <ViolinGraph data={logData} />}
+                        </Box>
+
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>Oscillation View</Typography>
+                            {logData && <OscillationGraph data={logData} />}
+                        </Box>
+                    </Box>
+                    
                     <Box sx={{ 
+                        mt: 2,
                         whiteSpace: 'pre-wrap', 
                         fontFamily: 'monospace',
                         fontSize: '14px',
