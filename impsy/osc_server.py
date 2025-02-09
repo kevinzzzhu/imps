@@ -75,7 +75,7 @@ class IMPSYOSCServer:
         if self.websocket_clients:
             await asyncio.gather(
                 *[client.send(json.dumps(message)) 
-                  for client in self.websocket_clients]
+                    for client in self.websocket_clients]
             )
     
     async def start(self):

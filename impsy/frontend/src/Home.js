@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
 import { Link } from "react-router-dom";
-import { Typography, List, ListItem, Box, Modal, Paper } from '@mui/material';
+import { Typography, List, ListItem, Box, Modal, Paper, Button } from '@mui/material';
 import InputVis from './components/InputVis';
 import OutputVis from './components/OutputVis';
 import { Audio } from 'react-loader-spinner'; // loading animation
@@ -14,35 +14,35 @@ import ViolinGraph from './components/ViolinGraph';
 import OscillationGraph from './components/OscillationGraph';
 
 const Container = styled.div`
-  display: flex;
-  height: 100vh;
-  justify-content: center;
-  align-items: center;
+    display: flex;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
 `;
 
 const LogList = styled.div`
-  width: 250px;
-  background-color: #f4f4f4;
-  padding: 20px;
-  flex-shrink: 0;
-  height: 80vh;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+    width: 250px;
+    background-color: #f4f4f4;
+    padding: 20px;
+    flex-shrink: 0;
+    height: 80vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 `;
 
 const LogListContent = styled.div`
-  overflow-y: auto;
-  flex-grow: 1;
+    overflow-y: auto;
+    flex-grow: 1;
 `;
 
 const ButtonContainer = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
 
-  button {
+    button {
     padding: 8px 16px;
     border: none;
     border-radius: 4px;
@@ -51,53 +51,53 @@ const ButtonContainer = styled.div`
     cursor: pointer;
     transition: background-color 0.2s, opacity 0.2s;
 
-    &:hover:not(:disabled) {
-      background-color: #0056b3;
-    }
+        &:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
 
-    &:disabled {
-      cursor: not-allowed;
+        &:disabled {
+                cursor: not-allowed;
+            }
     }
-  }
 `;
 
 const MainContent = styled.div`
-  flex-grow: 1;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+    flex-grow: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 `;
 
 const StyledModal = styled(Modal)`
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 `;
 
 const ModalContent = styled(Paper)`
-  padding: 20px;
-  max-width: 80vw;
-  max-height: 80vh;
-  overflow-y: auto;
-  background-color: white;
-  position: relative;
+    padding: 20px;
+    max-width: 80vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    background-color: white;
+    position: relative;
 `;
 
 const CloseButton = styled.button`
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 5px 10px;
-  border: none;
-  background: #f44336;
-  color: white;
-  cursor: pointer;
-  border-radius: 4px;
-  
-  &:hover {
-    background: #d32f2f;
-  }
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    border: none;
+    background: #f44336;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+    
+    &:hover {
+        background: #d32f2f;
+    }
 `;
 
 const LogItem = styled(ListItem)`
@@ -166,6 +166,7 @@ function Home() {
     const [logContent, setLogContent] = useState('');
     const [logData, setLogData] = useState(null);
     const [selectedLogs, setSelectedLogs] = useState([]);
+    const [selectedView, setSelectedView] = useState('basic');
 
     useEffect(() => {
         fetchLogFiles();
@@ -375,38 +376,94 @@ function Home() {
                         {selectedLog}
                     </Typography>
 
+                    {/* Add view selector buttons */}
+                    <Box sx={{ mb: 2, display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <Button 
+                            variant={selectedView === 'basic' ? 'contained' : 'outlined'}
+                            onClick={() => setSelectedView('basic')}
+                        >
+                            Basic View
+                        </Button>
+                        <Button
+                            variant={selectedView === 'delaunay' ? 'contained' : 'outlined'} 
+                            onClick={() => setSelectedView('delaunay')}
+                        >
+                            Delaunay View
+                        </Button>
+                        <Button
+                            variant={selectedView === 'splom' ? 'contained' : 'outlined'}
+                            onClick={() => setSelectedView('splom')}
+                        >
+                            Splom View
+                        </Button>
+                        <Button
+                            variant={selectedView === 'parallel' ? 'contained' : 'outlined'}
+                            onClick={() => setSelectedView('parallel')}
+                        >
+                            Parallel View
+                        </Button>
+                        <Button
+                            variant={selectedView === 'violin' ? 'contained' : 'outlined'}
+                            onClick={() => setSelectedView('violin')}
+                        >
+                            Violin View
+                        </Button>
+                        <Button
+                            variant={selectedView === 'oscillation' ? 'contained' : 'outlined'}
+                            onClick={() => setSelectedView('oscillation')}
+                        >
+                            Oscillation View
+                        </Button>
+                    </Box>
+
+                    {/* Conditional rendering based on selected view */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <Box>
-                            <Typography variant="subtitle1" gutterBottom>Basic View</Typography>
-                            {logData && <TimeSeriesGraph data={logData} />}
-                        </Box>
+                        {selectedView === 'basic' && (
+                            <Box>
+                                <Typography variant="subtitle1" gutterBottom>Basic View</Typography>
+                                {logData && <TimeSeriesGraph data={logData} />}
+                            </Box>
+                        )}
                         
-                        <Box>
-                            <Typography variant="subtitle1" gutterBottom>Delaunay View</Typography>
-                            {logData && <DelaunayGraph data={logData} />}
-                        </Box>
+                        {selectedView === 'delaunay' && (
+                            <Box>
+                                <Typography variant="subtitle1" gutterBottom>Delaunay View</Typography>
+                                {logData && <DelaunayGraph data={logData} />}
+                            </Box>
+                        )}
 
-                        <Box>
-                            <Typography variant="subtitle1" gutterBottom>Splom View</Typography>
-                            {logData && <SplomGraph data={logData} />}
-                        </Box>
+                        {selectedView === 'splom' && (
+                            <Box>
+                                <Typography variant="subtitle1" gutterBottom>Splom View</Typography>
+                                {logData && <SplomGraph data={logData} />}
+                            </Box>
+                        )}
 
-                        <Box>
-                            <Typography variant="subtitle1" gutterBottom>Parallel View</Typography>
-                            {logData && <ParallelGraph data={logData} />}
-                        </Box>
+                        {selectedView === 'parallel' && (
+                            <Box>
+                                <Typography variant="subtitle1" gutterBottom>Parallel View</Typography>
+                                {logData && <ParallelGraph data={logData} />}
+                            </Box>
+                        )}
 
-                        <Box>
-                            <Typography variant="subtitle1" gutterBottom>Violin View</Typography>
-                            {logData && <ViolinGraph data={logData} />}
-                        </Box>
+                        {selectedView === 'violin' && (
+                            <Box>
+                                <Typography variant="subtitle1" gutterBottom>Violin View</Typography>
+                                {logData && <ViolinGraph data={logData} />}
+                            </Box>
+                        )}
 
-                        <Box>
-                            <Typography variant="subtitle1" gutterBottom>Oscillation View</Typography>
-                            {logData && <OscillationGraph data={logData} />}
-                        </Box>
+                        {selectedView === 'oscillation' && (
+                            <Box>
+                                <Typography variant="subtitle1" gutterBottom>Oscillation View</Typography>
+                                {logData && <OscillationGraph data={logData} />}
+                            </Box>
+                        )}
                     </Box>
                     
+
+                    {/* Log content */} 
+                    Raw Data:
                     <Box sx={{ 
                         mt: 2,
                         whiteSpace: 'pre-wrap', 

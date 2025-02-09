@@ -85,7 +85,6 @@ def get_routes():
             })
     return page_routes
 
-# Refreshing within the React app will cause a 404 error (still not resolved yet)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def catch_all(path):
