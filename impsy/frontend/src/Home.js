@@ -169,6 +169,52 @@ const ReturnButton = styled.button`
     }
 `;
 
+const NavigationButton = styled.button`
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 18px 8px;
+    background: ${props => props.side === 'left' 
+        ? 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)'
+        : 'linear-gradient(135deg, #403A3E 0%, #BE5869 100%)'
+    };
+    border: none;
+    border-radius: ${props => props.side === 'left' ? '0 4px 4px 0' : '4px 0 0 4px'};
+    color: white;
+    cursor: pointer;
+    z-index: 1001;
+    ${props => props.side === 'left' ? 'left: 0;' : 'right: 0;'}
+    font-size: 1rem;
+    box-shadow: ${props => props.side === 'left' 
+        ? '2px 0 10px rgba(0, 0, 0, 0.2)' 
+        : '-2px 0 10px rgba(0, 0, 0, 0.2)'
+    };
+    
+    opacity: 0;
+    transform: translateY(-50%) translateX(${props => props.side === 'left' ? '-100%' : '100%'});
+    animation: ${props => props.show ? 'slideButton 0.5s ease-out forwards' : 'none'};
+    animation-delay: 0.2s;
+    pointer-events: ${props => props.show ? 'auto' : 'none'};
+
+    @keyframes slideButton {
+        from {
+            opacity: 0;
+            transform: translateY(-50%) translateX(${props => props.side === 'left' ? '-100%' : '100%'});
+        }
+        to {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
+    }
+
+    &:hover {
+        transform: translateY(-50%) ${props => props.side === 'left' 
+            ? 'translateX(2px)' 
+            : 'translateX(-2px)'
+        };
+    }
+`;
+
 function Home() {
     const [selectedSide, setSelectedSide] = useState(null);
     const [isHoveredLeft, setIsHoveredLeft] = useState(false);
@@ -213,15 +259,48 @@ function Home() {
         }
     }, [showTrainingVisualizer]);
 
+    const handleLeft = () => {
+        setShowTrainingVisualizer(false);
+        setSelectedSide('left');
+        // Delay showing the component until the side expansion animation is mostly complete
+        setTimeout(() => {
+            setShowComponent(true);
+        }, 400);
+    };
+
+    const handleRight = () => {
+        setShowTrainingVisualizer(false);
+        setSelectedSide('right');
+        // Delay showing the component until the side expansion animation is mostly complete
+        setTimeout(() => {
+            setShowComponent(true);
+        }, 400);
+    };
+
     return (
         <GlobalStyle>
             <ReturnButton 
-                show={selectedSide !== null && !showTrainingVisualizer}
+                show={selectedSide !== null}
                 onClick={handleReturn}
                 side={selectedSide}
             >
                 {selectedSide === 'left' ? '❮' : '❯'}
             </ReturnButton>
+
+            <NavigationButton 
+                show={showTrainingVisualizer}
+                onClick={handleLeft}
+                side="left"
+            >
+                ❮
+            </NavigationButton>
+            <NavigationButton 
+                show={showTrainingVisualizer}
+                onClick={handleRight}
+                side="right"
+            >
+                ❯
+            </NavigationButton>
             
             <Container>
                 <LeftHalf 
@@ -288,6 +367,7 @@ function Home() {
                 {showTrainingVisualizer && (
                     <TrainingVisualizer 
                         onClose={() => setShowTrainingVisualizer(false)}
+                        exitDirection={selectedSide === 'left' ? 'right' : 'left'}
                     />
                 )}
             </Container>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Typography } from '@mui/material';
 import axios from 'axios';
+import { Audio } from 'react-loader-spinner';
 
 const Container = styled.div`
     position: fixed;
@@ -16,22 +17,70 @@ const Container = styled.div`
     flex-direction: column;
     padding: 60px;
     opacity: 0;
-    animation: fadeIn 0.5s ease-out forwards;
-    animation-delay: 0.3s;
+    transform: translateX(100%);
+    animation: slideIn 0.5s ease-out forwards;
 
-    @keyframes fadeIn {
+    &.exit-left {
+        animation: slideOutLeft 0.5s ease-in forwards;
+    }
+
+    &.exit-right {
+        animation: slideOutRight 0.5s ease-in forwards;
+    }
+
+    @keyframes slideIn {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateX(100%);
         }
         to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes slideOutLeft {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(-100%);
+        }
+    }
+
+    @keyframes slideOutRight {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100%);
         }
     }
 `;
 
+const LoaderContainer = styled.div`
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+`;
+
+const LoaderText = styled.div`
+    color: white;
+    font-size: 1.2rem;
+    text-align: center;
+`;
+
 const LogWindow = styled.div`
+    position: relative;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 4px;
     padding: 20px;
@@ -41,46 +90,21 @@ const LogWindow = styled.div`
     font-family: monospace;
     color: white;
     white-space: pre-wrap;
-    opacity: 0;
-    transform: translateX(20px);
-    animation: slideIn 0.5s ease-out forwards;
-    animation-delay: 0.6s; // Start after container fades in
     
     &::-webkit-scrollbar {
         display: none;
-    }
-
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateX(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
     }
 `;
 
 const Title = styled(Typography)`
     color: white;
     margin: 20px;
-    opacity: 0;
-    animation: fadeIn 0.5s ease-out forwards;
-    animation-delay: 0.8s; // Start after log window slides in
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
-        to {
-            opacity: 1;
-        }
-    }
 `;
 
-const TrainingVisualizer = () => {
+const TrainingVisualizer = ({ onClose, exitDirection = 'right' }) => {
     const [trainingLog, setTrainingLog] = useState([]);
+    const [isExiting, setIsExiting] = useState(false);
+    const [isCompleted, setIsCompleted] = useState(false);
 
     useEffect(() => {
         const eventSource = new EventSource('/api/training/stream');
@@ -91,18 +115,17 @@ const TrainingVisualizer = () => {
         };
 
         eventSource.onerror = (error) => {
-            // Only log error if it's not due to a normal connection close
-            if (eventSource.readyState !== 2) { // 2 = CLOSED
+            if (eventSource.readyState !== 2) {
                 console.error("EventSource error:", error);
             }
         };
 
-        // Add status checking
         const checkStatus = setInterval(async () => {
             try {
                 const response = await axios.get('/api/training/status');
                 console.log("Training status:", response.data);
                 if (!response.data.is_running) {
+                    setIsCompleted(true);
                     clearInterval(checkStatus);
                     eventSource.close();
                 }
@@ -118,13 +141,20 @@ const TrainingVisualizer = () => {
     }, []);
 
     return (
-        <Container>
-            <Title variant="h5">
-                Training Progress
-            </Title>
-
+        <Container className={isExiting ? `exit-${exitDirection}` : ''}>
             <LogWindow>
                 {trainingLog.join('\n')}
+                {!isCompleted && (
+                    <LoaderContainer>
+                        <Audio 
+                            height={80}
+                            width={80}
+                            color="white"
+                            ariaLabel="training-loading"
+                        />
+                        <LoaderText>Training in progress...</LoaderText>
+                    </LoaderContainer>
+                )}
             </LogWindow>
         </Container>
     );
