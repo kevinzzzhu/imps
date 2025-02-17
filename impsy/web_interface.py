@@ -7,10 +7,11 @@ import platform
 import os
 import tomllib
 import subprocess
-from impsy.dataset import generate_dataset
+from impsy.dataset import generate_dataset, generate_dataset_from_files
 from pathlib import Path
 from impsy.osc_server import IMPSYOSCServer
 import asyncio
+import numpy as np
 
 app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
 app.secret_key = "impsywebui"
@@ -113,6 +114,10 @@ def api_routes():
 @app.route('/api/logs', methods=['GET', 'POST'])
 def logs():
     log_files = [f for f in os.listdir(LOGS_DIR) if f.endswith('.log')]
+    
+    # Sort log files by date (newest first)
+    log_files.sort(key=lambda x: x.split('T')[0], reverse=True)
+    
     return jsonify(log_files)
 
 @app.route('/api/logs/<filename>')
@@ -136,6 +141,7 @@ def get_log_content(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Train dataset using all the log files in the logs directory with the given dimension
 @app.route('/api/datasets', methods=['GET', 'POST'])
 def datasets():
     response = {
@@ -156,6 +162,7 @@ def datasets():
     response['datasets'].extend([f for f in os.listdir(DATASET_DIR) if f.endswith('.npz')])
     return jsonify(response)
 
+# Upload a model file to the models directory
 @app.route('/api/models', methods=['GET', 'POST'])
 def models():
     if request.method == 'POST':
@@ -192,13 +199,14 @@ def models():
 #     model_files = [f for f in os.listdir(MODEL_DIR) if allowed_model_file(f)]
 #     return render_template('models.html', model_files=model_files)
 
-
+# Get the current configuration file
 @app.route('/api/config', methods=['GET'])
 def get_config():
     with open(CONFIG_FILE, 'r') as f:
         config_content = f.read()
     return jsonify({'config_content': config_content})
 
+# Update the current configuration file
 @app.route('/api/config', methods=['POST'])
 def update_config():
     config_content = request.json.get('config_content')
@@ -211,23 +219,54 @@ def update_config():
             return jsonify({'error': str(e)}), 500
     return jsonify({'error': 'Invalid data'}), 400
 
+# Download a log file
 @app.route('/download_log/<filename>')
 def download_log(filename):
     return send_file(os.path.join(LOGS_DIR, filename), as_attachment=True)
 
+# Download a model file
 @app.route('/download_model/<filename>')
 def download_model(filename):
     return send_file(os.path.join(MODEL_DIR, filename), as_attachment=True)
 
+# Download a dataset file
 @app.route('/download_dataset/<filename>')
 def download_dataset(filename):
     return send_file(os.path.join(DATASET_DIR, filename), as_attachment=True)
 
+# Train dataset using all the log files in the logs directory with the given dimension
+@app.route('/api/train', methods=['POST'])
+def start_training():
+    try:
+        data = request.get_json()
+        log_files = data.get('logFiles', [])
+        
+        if not log_files:
+            return jsonify({"error": "No log files selected"}), 400
 
-
-
-
-
+        # Extract dimension from the "4d" part of the filename
+        dimension_part = [part for part in log_files[0].split('-') if 'd' in part][0]
+        dimension = int(dimension_part.replace('d', ''))
+        print(dimension)
+        # Create a temporary dataset name for selected files
+        dataset_name = f"training-dataset-{dimension}d-selected.npz"
+        dataset_file = Path("datasets") / dataset_name
+        
+        # Generate dataset from selected files
+        raw_perfs, stats = generate_dataset_from_files(log_files, dimension)
+        
+        # Save the dataset
+        np.savez_compressed(dataset_file, perfs=raw_perfs)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Dataset generated successfully",
+            "dataset_file": str(dataset_file),
+            "stats": stats
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @click.command()
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')

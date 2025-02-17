@@ -18,8 +18,16 @@ const TimeSeriesGraph = ({ data }) => {
         // Create SVG
         const svg = d3.select(svgRef.current)
             .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        // Add white background
+        svg.append('rect')
+            .attr('width', width + margin.left + margin.right)
             .attr('height', height + margin.top + margin.bottom)
-            .append('g')
+            .attr('fill', 'white');
+
+        // Create main group with margin translation
+        const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
         // Create scales
@@ -42,30 +50,33 @@ const TimeSeriesGraph = ({ data }) => {
         }
 
         // Add X and Y axes
-        svg.append('g')
+        g.append('g')
             .attr('transform', `translate(0,${height})`)
-            .call(d3.axisBottom(xScale));
+            .call(d3.axisBottom(xScale))
+            .style('color', '#333');  // Darker axis color for better contrast
 
-        svg.append('g')
+        g.append('g')
             .call(d3.axisLeft(yScale)
                 .ticks(5)
-                .tickFormat(d3.format('.0%')));
+                .tickFormat(d3.format('.0%')))
+            .style('color', '#333');  // Darker axis color for better contrast
 
         // Add grid lines
-        svg.append('g')
+        g.append('g')
             .attr('class', 'grid')
             .call(d3.axisLeft(yScale)
                 .tickSize(-width)
                 .tickFormat('')
             )
             .style('stroke-dasharray', '3,3')
-            .style('opacity', 0.2);
+            .style('opacity', 0.1)
+            .style('color', '#333');  // Darker grid color
 
         // Draw lines for each dimension
         const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
         for (let i = 0; i < data.dimension; i++) {
-            svg.append('path')
+            g.append('path')
                 .datum(data.samples)
                 .attr('fill', 'none')
                 .attr('stroke', colorScale(i))
@@ -74,7 +85,7 @@ const TimeSeriesGraph = ({ data }) => {
         }
 
         // Add legend
-        const legend = svg.append('g')
+        const legend = g.append('g')
             .attr('font-family', 'sans-serif')
             .attr('font-size', 10)
             .attr('text-anchor', 'start')
@@ -93,11 +104,21 @@ const TimeSeriesGraph = ({ data }) => {
             .attr('x', 24)
             .attr('y', 9.5)
             .attr('dy', '0.32em')
-            .text((d) => `Param ${d + 1}`);
+            .text((d) => `Param ${d + 1}`)
+            .style('fill', '#333');  // Darker text color
 
     }, [data]);
 
-    return <svg ref={svgRef}></svg>;
+    return (
+        <div style={{ 
+            backgroundColor: 'white',
+            padding: '10px',
+            borderRadius: '4px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+            <svg ref={svgRef}></svg>
+        </div>
+    );
 };
 
 export default TimeSeriesGraph; 

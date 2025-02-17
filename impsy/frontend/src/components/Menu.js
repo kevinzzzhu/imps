@@ -24,7 +24,6 @@ const MenuContainer = styled.div`
     justify-content: center;
     align-items: center;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    border-radius: 20px;
 `;
 
 const MenuItem = styled.div`
@@ -63,7 +62,17 @@ export const TogglableMenu = ({ isOpen, onClose }) => {
     const fileInputRef = useRef(null);
 
     const handleNavigation = (path) => {
-        navigate(path);
+        if (path === '/') {
+            navigate('/', { 
+                replace: true, 
+                state: { 
+                    reset: Date.now() 
+                } 
+            });
+            window.location.reload();
+        } else {
+            navigate(path);
+        }
     };
 
     const handleFileSelect = (event) => {

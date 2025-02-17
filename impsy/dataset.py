@@ -78,6 +78,52 @@ def generate_dataset(
     click.secho(f"done saving: {dataset_name}", fg="green")
     return dataset_file
 
+def generate_dataset_from_files(log_files: list, dimension: int, source: str = "logs"):
+    """Generate a dataset from specific log files."""
+    log_arrays = []
+
+    for filename in log_files:
+        print("Processing:", filename)
+        try:
+            log = transform_log_to_sequence_example(
+                os.path.join(source, filename), dimension
+            )
+            log_arrays.append(log)
+        except Exception as e:
+            print(f"Processing failed for {filename}: {str(e)}")
+            continue
+
+    # Input format is:
+    # 0. 1. 2. ... n.
+    # dt x1 x2 ... xn
+    raw_perfs = []
+
+    acc = 0
+    time = 0
+    interactions = 0
+    for l in log_arrays:
+        if l.shape[0] == 0:
+            continue  # ignore logs with zero values
+        acc += l.shape[0] * l.shape[1]
+        interactions += l.shape[0]
+        time += l.T[0].sum()
+        raw = l.astype("float32")  # dt, x_1, ... , x_n
+        raw_perfs.append(raw)
+
+    if acc == 0:
+        raise ValueError("Zero values to add to dataset!")
+
+    stats = {
+        "total_values": acc,
+        "total_interactions": interactions,
+        "total_time": time,
+        "num_performances": len(raw_perfs)
+    }
+    
+    raw_perfs = np.array(raw_perfs, dtype=object)  # use object encoding to allow inhomogeneous arrays
+    return raw_perfs, stats
+
+
 
 @click.command(name="dataset")
 @click.option(

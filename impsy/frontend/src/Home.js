@@ -1,497 +1,272 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
-import { Link } from "react-router-dom";
-import { Typography, List, ListItem, Box, Modal, Paper, Button } from '@mui/material';
-import InputVis from './components/InputVis';
-import OutputVis from './components/OutputVis';
-import { Audio } from 'react-loader-spinner'; // loading animation
-import TimeSeriesGraph from './components/TimeSeriesGraph';
-import DelaunayGraph from './components/DelaunayGraph';
-import SplomGraph from './components/SplomGraph';
-import ParallelGraph from './components/ParallelGraph';
-import ViolinGraph from './components/ViolinGraph';
-import OscillationGraph from './components/OscillationGraph';
+import { useLocation } from 'react-router-dom';
+import LeftSide from './components/home/leftSide';
+import RightSide from './components/home/rightSide';
+import ipadEnsemble from './assets/images/ipad-ensemble.jpg';
+import metatoneHands from './assets/images/metatone-hands-header.jpg';
+
+const GlobalStyle = styled.div`
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+`;
 
 const Container = styled.div`
     display: flex;
     height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+`;
+
+const Half = styled.div`
+    flex: ${props => props.isSelected ? 0.99 : props.isOtherSelected ? 0 : 0.5};
+    height: 100%;
+    display: flex;
     justify-content: center;
     align-items: center;
-`;
-
-const LogList = styled.div`
-    width: 250px;
-    background-color: #f4f4f4;
-    padding: 20px;
-    flex-shrink: 0;
-    height: 80vh;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-`;
-
-const LogListContent = styled.div`
-    overflow-y: auto;
-    flex-grow: 1;
-`;
-
-const ButtonContainer = styled.div`
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
-
-    button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    background-color: #007bff;
-    color: white;
     cursor: pointer;
-    transition: background-color 0.2s, opacity 0.2s;
+    position: relative;
+    transition: all 0.5s ease-in-out;
+    overflow: hidden;
+    
+    &:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: ${props => props.background};
+        opacity: 0.8;
+        transition: opacity 0.3s ease;
+    }
+    
+    &:hover:before {
+        opacity: 0.9;
+    }
+    
+    ${props => props.isOtherSelected && `
+        width: 0;
+        flex: 0.01;
+    `}
+`;
 
-        &:hover:not(:disabled) {
-            background-color: #0056b3;
-        }
-
-        &:disabled {
-                cursor: not-allowed;
-            }
+const LeftHalf = styled(Half)`
+    background-image: url(${metatoneHands});
+    background-size: cover;
+    background-position: center;
+    &:before {
+        background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+        opacity: 0.7;
     }
 `;
 
-const MainContent = styled.div`
-    flex-grow: 1;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+const RightHalf = styled(Half)`
+    background-image: url(${ipadEnsemble});
+    background-size: cover;
+    background-position: center;
+    &:before {
+        background: linear-gradient(135deg, #403A3E 0%, #BE5869 100%);
+        opacity: 0.7;
+    }
 `;
 
-const StyledModal = styled(Modal)`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-`;
-
-const ModalContent = styled(Paper)`
-    padding: 20px;
-    max-width: 80vw;
-    max-height: 80vh;
-    overflow-y: auto;
-    background-color: white;
-    position: relative;
-`;
-
-const CloseButton = styled.button`
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    padding: 5px 10px;
-    border: none;
-    background: #f44336;
+const Text = styled.h2`
     color: white;
-    cursor: pointer;
-    border-radius: 4px;
+    font-size: 2.5rem;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    padding: 0 2rem;
+    
+    ${props => (props.isOtherSelected || props.showComponent) && `
+        opacity: 0;
+        transform: scale(0);
+    `}
     
     &:hover {
-        background: #d32f2f;
+        transform: scale(1.1);
     }
 `;
 
-const LogItem = styled(ListItem)`
-    &:hover {
-        background-color: #e0e0e0;
-    }
-    transition: background-color 0.2s;
+const SubText = styled.p`
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.2rem;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    max-width: 80%;
+    margin-top: 1rem;
+    opacity: ${props => props.isVisible && !props.showComponent ? 1 : 0};
+    transform: translateY(${props => props.isVisible && !props.showComponent ? 0 : '20px'});
+    transition: all 0.3s ease;
+`;
+
+const ContentWrapper = styled.div`
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-
-    input[type="checkbox"] {
-        cursor: pointer;
-        width: 16px;
-        height: 16px;
-    }
+    opacity: ${props => props.isSelected ? 1 : props.isOtherSelected ? 0 : 1};
+    transform: scale(${props => props.isSelected ? 1 : props.isOtherSelected ? 0 : 1});
+    transition: all 0.5s ease-in-out;
 `;
 
-const parseLogData = (content) => {
-    try {
-        const lines = content.trim().split('\n');
-        const data = {
-            dimension: 0,
-            samples: []  // Array of complete data points
+const ComponentWrapper = styled.div`
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: ${props => props.isVisible ? 1 : 0};
+    transform: scale(${props => props.isVisible ? 1 : 0.95});
+    transition: all 0.5s ease-in-out;
+    visibility: ${props => props.isVisible ? 'visible' : 'hidden'};
+    background-color: transparent;
+`;
+
+const ReturnButton = styled.button`
+    position: fixed;
+    top: 50%;
+    ${props => props.side === 'left' ? 'right: 0' : 'left: 0'};
+    transform: translateY(-50%);
+    padding: 18px 8px;
+    background: ${props => props.side === 'left' 
+        ? 'linear-gradient(135deg, #403A3E 0%, #BE5869 100%)'
+        : 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)'
+    };
+    border: none;
+    border-radius: ${props => props.side === 'left' ? '4px 0 0 4px' : '0 4px 4px 0'};
+    color: white;
+    cursor: pointer;
+    z-index: 1000;
+    transition: all 0.5s ease;
+    opacity: ${props => props.show ? 1 : 0};
+    pointer-events: ${props => props.show ? 'auto' : 'none'};
+    font-size: 1rem;
+    box-shadow: ${props => props.side === 'left' 
+        ? '-2px 0 10px rgba(0, 0, 0, 0.2)' 
+        : '2px 0 10px rgba(0, 0, 0, 0.2)'
+    };
+
+    &:hover {
+        transform: translateY(-50%) ${props => props.side === 'left' 
+            ? 'translateX(-2px)' 
+            : 'translateX(2px)'
         };
-        
-        lines.forEach(line => {
-            const [timestamp, source, ...values] = line.split(',');
-            if (source === 'interface') {
-                const numericValues = values.map(v => parseFloat(v));
-                data.samples.push({
-                    timestamp: new Date(timestamp),
-                    source: source,
-                    values: numericValues
-                });
-                
-                // Set dimension based on first valid entry
-                if (data.dimension === 0) {
-                    data.dimension = numericValues.length;
-                }
-            }
-        });
-        
-        return {
-            ...data,
-            totalSamples: data.samples.length,
-            timeRange: {
-                start: data.samples[0]?.timestamp,
-                end: data.samples[data.samples.length - 1]?.timestamp
-            }
-        };
-    } catch (error) {
-        console.error('Error parsing log data:', error);
-        return null;
     }
-};
+`;
 
 function Home() {
-    const [inputData, setInputData] = useState([]);
-    const [outputData, setOutputData] = useState([]);
-    const [logFiles, setLogFiles] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [wsStatus, setWsStatus] = useState('Connecting...');
-    const [selectedLog, setSelectedLog] = useState(null);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [logContent, setLogContent] = useState('');
-    const [logData, setLogData] = useState(null);
-    const [selectedLogs, setSelectedLogs] = useState([]);
-    const [selectedView, setSelectedView] = useState('basic');
+    const [selectedSide, setSelectedSide] = useState(null);
+    const [isHoveredLeft, setIsHoveredLeft] = useState(false);
+    const [isHoveredRight, setIsHoveredRight] = useState(false);
+    const [showComponent, setShowComponent] = useState(false);
+    const location = useLocation();
 
     useEffect(() => {
-        fetchLogFiles();
-    }, []);
-    
-    const fetchLogFiles = async () => {
-        try {
-            const response = await axios.get('/api/logs');
-            setLogFiles(response.data);
-            setLoading(false);  // Set loading to false after fetching data
-        } catch (error) {
-            console.error('Failed to fetch log files:', error);
-            setLoading(false);  // Ensure loading is set to false even if there is an error
+        if (location.state?.reset) {
+            setSelectedSide(null);
+            setIsHoveredLeft(false);
+            setIsHoveredRight(false);
+            setShowComponent(false);
         }
+    }, [location.state?.reset]);
+
+    const handleSideClick = (side) => {
+        setSelectedSide(side);
+        // Delay showing the component until the side expansion animation is mostly complete
+        setTimeout(() => {
+            setShowComponent(true);
+        }, 400);
     };
 
-    useEffect(() => {
-        // Fetch log files
-        const fetchLogFiles = async () => {
-            try {
-                const response = await axios.get('/api/logs');
-                setLogFiles(response.data);
-                setLoading(false);
-            } catch (error) {
-                console.error('Error fetching log files:', error);
-                setLoading(false);
-            }
-        };
-
-        fetchLogFiles();
-
-        // WebSocket connection
-        const ws = new WebSocket('ws://localhost:8080');
-        
-        ws.onopen = () => {
-            console.log('Connected to WebSocket server');
-            setWsStatus('Connected');
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                // console.log('Received message:', message);
-                
-                if (message.type === 'input') {
-                    setInputData(message.data);
-                } else if (message.type === 'output') {
-                    setOutputData(message.data);
-                }
-            } catch (error) {
-                console.error('Error processing message:', error);
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            setWsStatus('Error connecting');
-        };
-
-        ws.onclose = () => {
-            console.log('Disconnected from WebSocket server');
-            setWsStatus('Disconnected');
-        };
-
-        // Cleanup
-        return () => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.close();
-            }
-        };
-    }, []);
-
-    // Add function to fetch log content
-    const fetchLogContent = async (filename) => {
-        try {
-            setLogContent("Loading..."); 
-            setModalOpen(true);  
-            
-            const response = await axios.get(`/api/logs/${filename}`, {
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (response.data && response.data.error) {
-                const errorMsg = `Server Error: ${response.data.error}`;
-                console.error(errorMsg);
-                setLogContent(errorMsg);
-            } else {
-                const parsedData = parseLogData(response.data);
-                if (parsedData) {
-                    setLogContent(
-                        `Dimension: ${parsedData.dimension}\n` +
-                        `Total Samples: ${parsedData.totalSamples}\n` +
-                        `Time Range: ${parsedData.timeRange.start.toLocaleString()} - ` +
-                        `${parsedData.timeRange.end.toLocaleString()}\n\n` +
-                        `Raw Data:\n${response.data}`
-                    );
-                    // Store parsed data for visualization
-                    setLogData(parsedData);
-                } else {
-                    setLogContent("Error parsing log data");
-                }
-            }
-        } catch (error) {
-            const errorMsg = `Error loading log file: ${error.message}\nDetails: ${JSON.stringify(error.response?.data || {}, null, 2)}`;
-            console.error(errorMsg);
-            setLogContent(errorMsg);
-        }
-    };
-
-    // Handle log file click
-    const handleLogClick = (filename) => {
-        setSelectedLog(filename);
-        fetchLogContent(filename);
-    };
-
-    // Add handler for checkbox changes
-    const handleCheckboxChange = (filename) => {
-        setSelectedLogs(prev => {
-            if (prev.includes(filename)) {
-                return prev.filter(f => f !== filename);
-            } else {
-                return [...prev, filename];
-            }
-        });
-    };
-
-    // Add handler for train button
-    const handleTrain = async () => {
-        if (selectedLogs.length === 0) {
-            alert('Please select at least one log file');
-            return;
-        }
-
-        try {
-            const response = await axios.post('/api/train', {
-                logFiles: selectedLogs
-            });
-            alert('Training started successfully!');
-        } catch (error) {
-            console.error('Error starting training:', error);
-            alert('Failed to start training');
-        }
+    const handleReturn = () => {
+        setSelectedSide(null);
+        setShowComponent(false);
+        setIsHoveredLeft(false);
+        setIsHoveredRight(false);
     };
 
     return (
-        <Container>
-            <LogList>
-                <Typography variant="h6" gutterBottom>Select Log Files</Typography>
-                <LogListContent>
-                    {loading ? (
-                        <Audio height="80" width="80" color="green" ariaLabel="loading" />
-                    ) : logFiles.length > 0 ? (
-                        <List>
-                            {logFiles.map((file, index) => (
-                                <LogItem 
-                                    button 
-                                    key={index} 
-                                    onClick={() => handleLogClick(file)}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedLogs.includes(file)}
-                                        onChange={(e) => {
-                                            e.stopPropagation();
-                                            handleCheckboxChange(file);
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    {file}
-                                </LogItem>
-                            ))}
-                        </List>
-                    ) : (
-                        <p>No log files found.</p>
-                    )}
-                </LogListContent>
-                <ButtonContainer>
-                    <button>Import</button>
-                    <button 
-                        onClick={handleTrain}
-                        disabled={selectedLogs.length === 0}
-                        style={{
-                            opacity: selectedLogs.length === 0 ? 0.5 : 1,
-                            cursor: selectedLogs.length === 0 ? 'not-allowed' : 'pointer'
-                        }}
-                    >
-                        Train
-                    </button>
-                </ButtonContainer>
-            </LogList>
-
-            {/* Add Modal */}
-            <StyledModal
-                open={modalOpen}
-                onClose={() => setModalOpen(false)}
-                aria-labelledby="log-modal-title"
+        <GlobalStyle>
+            <ReturnButton 
+                show={selectedSide !== null}
+                onClick={handleReturn}
+                side={selectedSide}
             >
-                <ModalContent elevation={24}>
-                    <CloseButton onClick={() => setModalOpen(false)}>
-                        ×
-                    </CloseButton>
-                    <Typography variant="h6" id="log-modal-title" gutterBottom>
-                        {selectedLog}
-                    </Typography>
-
-                    {/* Add view selector buttons */}
-                    <Box sx={{ mb: 2, display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <Button 
-                            variant={selectedView === 'basic' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('basic')}
+                {selectedSide === 'left' ? '❮' : '❯'}
+            </ReturnButton>
+            <Container>
+                <LeftHalf 
+                    onClick={() => handleSideClick('left')}
+                    onMouseEnter={() => setIsHoveredLeft(true)}
+                    onMouseLeave={() => setIsHoveredLeft(false)}
+                    isSelected={selectedSide === 'left'}
+                    isOtherSelected={selectedSide === 'right'}
+                >
+                    <ContentWrapper 
+                        isSelected={selectedSide === 'left'}
+                        isOtherSelected={selectedSide === 'right'}
+                    >
+                        <Text 
+                            isOtherSelected={selectedSide === 'right'} 
+                            showComponent={showComponent}
                         >
-                            Basic View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'delaunay' ? 'contained' : 'outlined'} 
-                            onClick={() => setSelectedView('delaunay')}
+                            Start a Project
+                        </Text>
+                        <SubText 
+                            isVisible={isHoveredLeft || selectedSide === 'left'}
+                            showComponent={showComponent}
                         >
-                            Delaunay View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'splom' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('splom')}
+                            Create a brand new model with your previous practice!
+                        </SubText>
+                    </ContentWrapper>
+                </LeftHalf>
+                
+                <RightHalf 
+                    onClick={() => handleSideClick('right')}
+                    onMouseEnter={() => setIsHoveredRight(true)}
+                    onMouseLeave={() => setIsHoveredRight(false)}
+                    isSelected={selectedSide === 'right'}
+                    isOtherSelected={selectedSide === 'left'}
+                >
+                    <ContentWrapper 
+                        isSelected={selectedSide === 'right'}
+                        isOtherSelected={selectedSide === 'left'}
+                    >
+                        <Text 
+                            isOtherSelected={selectedSide === 'left'}
+                            showComponent={showComponent}
                         >
-                            Splom View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'parallel' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('parallel')}
+                            Select Existing Model
+                        </Text>
+                        <SubText 
+                            isVisible={isHoveredRight || selectedSide === 'right'}
+                            showComponent={showComponent}
                         >
-                            Parallel View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'violin' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('violin')}
-                        >
-                            Violin View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'oscillation' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('oscillation')}
-                        >
-                            Oscillation View
-                        </Button>
-                    </Box>
+                            Continue with a previously trained model!
+                        </SubText>
+                    </ContentWrapper>
+                </RightHalf>
 
-                    {/* Conditional rendering based on selected view */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {selectedView === 'basic' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Basic View</Typography>
-                                {logData && <TimeSeriesGraph data={logData} />}
-                            </Box>
-                        )}
-                        
-                        {selectedView === 'delaunay' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Delaunay View</Typography>
-                                {logData && <DelaunayGraph data={logData} />}
-                            </Box>
-                        )}
-
-                        {selectedView === 'splom' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Splom View</Typography>
-                                {logData && <SplomGraph data={logData} />}
-                            </Box>
-                        )}
-
-                        {selectedView === 'parallel' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Parallel View</Typography>
-                                {logData && <ParallelGraph data={logData} />}
-                            </Box>
-                        )}
-
-                        {selectedView === 'violin' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Violin View</Typography>
-                                {logData && <ViolinGraph data={logData} />}
-                            </Box>
-                        )}
-
-                        {selectedView === 'oscillation' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Oscillation View</Typography>
-                                {logData && <OscillationGraph data={logData} />}
-                            </Box>
-                        )}
-                    </Box>
-                    
-
-                    {/* Log content */} 
-                    Raw Data:
-                    <Box sx={{ 
-                        mt: 2,
-                        whiteSpace: 'pre-wrap', 
-                        fontFamily: 'monospace',
-                        fontSize: '14px',
-                        backgroundColor: '#f5f5f5',
-                        padding: '15px',
-                        borderRadius: '4px'
-                    }}>
-                        {logContent}
-                    </Box>
-                </ModalContent>
-            </StyledModal>
-
-            <MainContent>
-                <Typography variant="h4" gutterBottom>IMPSY Visualization</Typography>
-                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-evenly' }}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <InputVis data={inputData}/>
-                        <Typography variant="subtitle1">Input</Typography>
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <OutputVis data={outputData}/>
-                        <Typography variant="subtitle1">Output</Typography>
-                    </div>
-                </div>
-            </MainContent>
-        </Container>
+                <ComponentWrapper isVisible={showComponent}>
+                    {selectedSide === 'left' && <LeftSide />}
+                    {selectedSide === 'right' && <RightSide />}
+                </ComponentWrapper>
+            </Container>
+        </GlobalStyle>
     );
 }
 
