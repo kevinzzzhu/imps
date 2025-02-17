@@ -245,28 +245,6 @@ def download_model(filename):
 def download_dataset(filename):
     return send_file(os.path.join(DATASET_DIR, filename), as_attachment=True)
 
-def training_stream():
-    def generate():
-        while True:
-            try:
-                message = training_queue.get(timeout=30)  # Add timeout
-                if message == "DONE":
-                    logging.info("Training stream completed")
-                    break
-                logging.info(f"Streaming message: {message}")
-                yield f"data: {json.dumps(message)}\n\n"
-            except queue.Empty:
-                logging.warning("Training queue timeout - no messages for 30 seconds")
-                break
-            except Exception as e:
-                logging.error(f"Error in training stream: {e}")
-                break
-    return Response(stream_with_context(generate()), mimetype='text/event-stream')
-
-@app.route('/api/training/stream')
-def stream():
-    return training_stream()
-
 @app.route('/api/create-dataset', methods=['POST'])
 def create_dataset():
     try:
@@ -394,6 +372,25 @@ def training_status():
         "is_running": False,
         "pid": None
     })
+
+@app.route('/api/training/stream')
+def stream():
+    def generate():
+        while True:
+            try:
+                message = training_queue.get(timeout=30)  # Add timeout
+                if message == "DONE":
+                    logging.info("Training stream completed")
+                    break
+                logging.info(f"Streaming message: {message}")
+                yield f"data: {json.dumps(message)}\n\n"
+            except queue.Empty:
+                logging.warning("Training queue timeout - no messages for 30 seconds")
+                break
+            except Exception as e:
+                logging.error(f"Error in training stream: {e}")
+                break
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 @click.command()
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')

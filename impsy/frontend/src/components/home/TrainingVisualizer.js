@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Typography, Box, LinearProgress } from '@mui/material';
+import { Typography } from '@mui/material';
 import axios from 'axios';
 
 const Container = styled.div`
@@ -9,12 +9,26 @@ const Container = styled.div`
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(44, 62, 80, 0.95);
-    backdrop-filter: blur(8px);
+    background: rgba(44, 62, 80, 0.6);
+    backdrop-filter: blur(4px);
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    padding: 20px;
+    padding: 60px;
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out forwards;
+    animation-delay: 0.3s;
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 `;
 
 const LogWindow = styled.div`
@@ -27,50 +41,60 @@ const LogWindow = styled.div`
     font-family: monospace;
     color: white;
     white-space: pre-wrap;
+    opacity: 0;
+    transform: translateX(20px);
+    animation: slideIn 0.5s ease-out forwards;
+    animation-delay: 0.6s; // Start after container fades in
     
     &::-webkit-scrollbar {
         display: none;
     }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
 `;
 
-const TrainingMetrics = styled.div`
-    display: flex;
-    gap: 20px;
+const Title = styled(Typography)`
+    color: white;
     margin: 20px;
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out forwards;
+    animation-delay: 0.8s; // Start after log window slides in
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
 `;
 
-const MetricBox = styled.div`
-    background: rgba(255, 255, 255, 0.1);
-    padding: 15px;
-    border-radius: 4px;
-    min-width: 150px;
-`;
-
-const TrainingVisualizer = ({ onClose }) => {
+const TrainingVisualizer = () => {
     const [trainingLog, setTrainingLog] = useState([]);
-    const [currentEpoch, setCurrentEpoch] = useState(0);
-    const [totalEpochs, setTotalEpochs] = useState(100);
-    const [loss, setLoss] = useState(null);
-    const [valLoss, setValLoss] = useState(null);
 
     useEffect(() => {
-        console.log("Setting up EventSource");
         const eventSource = new EventSource('/api/training/stream');
         
         eventSource.onmessage = (event) => {
-            console.log("Received message:", event.data);
             const data = JSON.parse(event.data);
             setTrainingLog(prev => [...prev, data.message]);
-            
-            if (data.metrics) {
-                setCurrentEpoch(data.metrics.epoch);
-                setLoss(data.metrics.loss);
-                setValLoss(data.metrics.val_loss);
-            }
         };
 
         eventSource.onerror = (error) => {
-            console.error("EventSource error:", error);
+            // Only log error if it's not due to a normal connection close
+            if (eventSource.readyState !== 2) { // 2 = CLOSED
+                console.error("EventSource error:", error);
+            }
         };
 
         // Add status checking
@@ -88,7 +112,6 @@ const TrainingVisualizer = ({ onClose }) => {
         }, 5000);
 
         return () => {
-            console.log("Cleaning up EventSource");
             eventSource.close();
             clearInterval(checkStatus);
         };
@@ -96,43 +119,9 @@ const TrainingVisualizer = ({ onClose }) => {
 
     return (
         <Container>
-            <Typography variant="h5" style={{ color: 'white', margin: '20px' }}>
+            <Title variant="h5">
                 Training Progress
-            </Typography>
-            
-            <TrainingMetrics>
-                <MetricBox>
-                    <Typography variant="body2" style={{ color: 'white' }}>
-                        Progress
-                    </Typography>
-                    <Typography variant="h6" style={{ color: 'white' }}>
-                        {currentEpoch} / {totalEpochs}
-                    </Typography>
-                    <LinearProgress 
-                        variant="determinate" 
-                        value={(currentEpoch/totalEpochs) * 100}
-                        sx={{ marginTop: 1 }}
-                    />
-                </MetricBox>
-                
-                <MetricBox>
-                    <Typography variant="body2" style={{ color: 'white' }}>
-                        Loss
-                    </Typography>
-                    <Typography variant="h6" style={{ color: 'white' }}>
-                        {loss?.toFixed(4) || '-'}
-                    </Typography>
-                </MetricBox>
-                
-                <MetricBox>
-                    <Typography variant="body2" style={{ color: 'white' }}>
-                        Validation Loss
-                    </Typography>
-                    <Typography variant="h6" style={{ color: 'white' }}>
-                        {valLoss?.toFixed(4) || '-'}
-                    </Typography>
-                </MetricBox>
-            </TrainingMetrics>
+            </Title>
 
             <LogWindow>
                 {trainingLog.join('\n')}

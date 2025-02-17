@@ -19,6 +19,8 @@ const Container = styled.div`
     background: transparent;
     padding: 0 20px;
     position: relative;
+    transition: transform 0.5s ease-out;
+    transform: ${props => props.isTraining ? 'translateX(-20%)' : 'translateX(0)'};
 `;
 
 const LogList = styled.div`
@@ -278,7 +280,7 @@ const parseLogData = (content) => {
     }
 };
 
-function LeftSide() {
+const LeftSide = ({ onTrainingStart }) => {
     const [logFiles, setLogFiles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedLog, setSelectedLog] = useState(null);
@@ -296,7 +298,6 @@ function LeftSide() {
         customDimension: ''
     });
     const [showTrainingDialog, setShowTrainingDialog] = useState(false);
-    const [showTrainingVisualizer, setShowTrainingVisualizer] = useState(false);
     const [trainingStats, setTrainingStats] = useState(null);
 
     useEffect(() => {
@@ -479,7 +480,11 @@ function LeftSide() {
 
     const handleTrainingDialogClose = async () => {
         setShowTrainingDialog(false);
-        setShowTrainingVisualizer(true);
+        
+        // Call the onTrainingStart prop to notify parent
+        if (onTrainingStart) {
+            onTrainingStart();
+        }
         
         // Start the actual training process
         try {
@@ -790,13 +795,6 @@ function LeftSide() {
                     </Button>
                 </Box>
             </Modal>
-
-            {/* Training Visualizer */}
-            {showTrainingVisualizer && (
-                <TrainingVisualizer 
-                    onClose={() => setShowTrainingVisualizer(false)}
-                />
-            )}
         </Container>
     );
 }

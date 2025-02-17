@@ -5,6 +5,7 @@ import LeftSide from './components/home/LeftSide';
 import RightSide from './components/home/RightSide';
 import ipadEnsemble from './assets/images/ipad-ensemble.jpg';
 import metatoneHands from './assets/images/metatone-hands-header.jpg';
+import TrainingVisualizer from './components/home/TrainingVisualizer';
 
 const GlobalStyle = styled.div`
     margin: 0;
@@ -173,6 +174,7 @@ function Home() {
     const [isHoveredLeft, setIsHoveredLeft] = useState(false);
     const [isHoveredRight, setIsHoveredRight] = useState(false);
     const [showComponent, setShowComponent] = useState(false);
+    const [showTrainingVisualizer, setShowTrainingVisualizer] = useState(false);
     const location = useLocation();
 
     useEffect(() => {
@@ -181,6 +183,7 @@ function Home() {
             setIsHoveredLeft(false);
             setIsHoveredRight(false);
             setShowComponent(false);
+            setShowTrainingVisualizer(false);
         }
     }, [location.state?.reset]);
 
@@ -197,21 +200,33 @@ function Home() {
         setShowComponent(false);
         setIsHoveredLeft(false);
         setIsHoveredRight(false);
+        setShowTrainingVisualizer(false);
     };
+
+    // Add this effect to reset the side selection when training visualizer shows
+    useEffect(() => {
+        if (showTrainingVisualizer) {
+            setSelectedSide(null);
+            setShowComponent(false);
+            setIsHoveredLeft(false);
+            setIsHoveredRight(false);
+        }
+    }, [showTrainingVisualizer]);
 
     return (
         <GlobalStyle>
             <ReturnButton 
-                show={selectedSide !== null}
+                show={selectedSide !== null && !showTrainingVisualizer}
                 onClick={handleReturn}
                 side={selectedSide}
             >
                 {selectedSide === 'left' ? '❮' : '❯'}
             </ReturnButton>
+            
             <Container>
                 <LeftHalf 
-                    onClick={() => handleSideClick('left')}
-                    onMouseEnter={() => setIsHoveredLeft(true)}
+                    onClick={() => !showTrainingVisualizer && handleSideClick('left')}
+                    onMouseEnter={() => !showTrainingVisualizer && setIsHoveredLeft(true)}
                     onMouseLeave={() => setIsHoveredLeft(false)}
                     isSelected={selectedSide === 'left'}
                     isOtherSelected={selectedSide === 'right'}
@@ -222,13 +237,13 @@ function Home() {
                     >
                         <Text 
                             isOtherSelected={selectedSide === 'right'} 
-                            showComponent={showComponent}
+                            showComponent={showComponent || showTrainingVisualizer}
                         >
                             Start a Project
                         </Text>
                         <SubText 
                             isVisible={isHoveredLeft || selectedSide === 'left'}
-                            showComponent={showComponent}
+                            showComponent={showComponent || showTrainingVisualizer}
                         >
                             Create a brand new model with your previous practice!
                         </SubText>
@@ -236,8 +251,8 @@ function Home() {
                 </LeftHalf>
                 
                 <RightHalf 
-                    onClick={() => handleSideClick('right')}
-                    onMouseEnter={() => setIsHoveredRight(true)}
+                    onClick={() => !showTrainingVisualizer && handleSideClick('right')}
+                    onMouseEnter={() => !showTrainingVisualizer && setIsHoveredRight(true)}
                     onMouseLeave={() => setIsHoveredRight(false)}
                     isSelected={selectedSide === 'right'}
                     isOtherSelected={selectedSide === 'left'}
@@ -248,23 +263,33 @@ function Home() {
                     >
                         <Text 
                             isOtherSelected={selectedSide === 'left'}
-                            showComponent={showComponent}
+                            showComponent={showComponent || showTrainingVisualizer}
                         >
                             Select Existing Model
                         </Text>
                         <SubText 
                             isVisible={isHoveredRight || selectedSide === 'right'}
-                            showComponent={showComponent}
+                            showComponent={showComponent || showTrainingVisualizer}
                         >
                             Continue with a previously trained model!
                         </SubText>
                     </ContentWrapper>
                 </RightHalf>
 
-                <ComponentWrapper isVisible={showComponent}>
-                    {selectedSide === 'left' && <LeftSide />}
+                <ComponentWrapper isVisible={showComponent && !showTrainingVisualizer}>
+                    {selectedSide === 'left' && (
+                        <LeftSide 
+                            onTrainingStart={() => setShowTrainingVisualizer(true)}
+                        />
+                    )}
                     {selectedSide === 'right' && <RightSide />}
                 </ComponentWrapper>
+
+                {showTrainingVisualizer && (
+                    <TrainingVisualizer 
+                        onClose={() => setShowTrainingVisualizer(false)}
+                    />
+                )}
             </Container>
         </GlobalStyle>
     );
