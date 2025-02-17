@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Typography, Box, LinearProgress } from '@mui/material';
+import axios from 'axios';
 
 const Container = styled.div`
     position: fixed;
@@ -53,9 +54,11 @@ const TrainingVisualizer = ({ onClose }) => {
     const [valLoss, setValLoss] = useState(null);
 
     useEffect(() => {
+        console.log("Setting up EventSource");
         const eventSource = new EventSource('/api/training/stream');
         
         eventSource.onmessage = (event) => {
+            console.log("Received message:", event.data);
             const data = JSON.parse(event.data);
             setTrainingLog(prev => [...prev, data.message]);
             
@@ -66,7 +69,29 @@ const TrainingVisualizer = ({ onClose }) => {
             }
         };
 
-        return () => eventSource.close();
+        eventSource.onerror = (error) => {
+            console.error("EventSource error:", error);
+        };
+
+        // Add status checking
+        const checkStatus = setInterval(async () => {
+            try {
+                const response = await axios.get('/api/training/status');
+                console.log("Training status:", response.data);
+                if (!response.data.is_running) {
+                    clearInterval(checkStatus);
+                    eventSource.close();
+                }
+            } catch (error) {
+                console.error("Error checking training status:", error);
+            }
+        }, 5000);
+
+        return () => {
+            console.log("Cleaning up EventSource");
+            eventSource.close();
+            clearInterval(checkStatus);
+        };
     }, []);
 
     return (

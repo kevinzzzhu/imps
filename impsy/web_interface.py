@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, send_from_directory, jsonify
+from flask import Flask, request, send_file, send_from_directory, jsonify, Response, stream_with_context
 from werkzeug.utils import secure_filename
 import click
 import psutil
@@ -12,6 +12,11 @@ from pathlib import Path
 from impsy.osc_server import IMPSYOSCServer
 import asyncio
 import numpy as np
+import queue
+import threading
+import json
+from impsy.train import train_mdrnn
+import logging
 
 app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
 app.secret_key = "impsywebui"
@@ -33,6 +38,12 @@ ROUTE_NAMES = {
     'models': 'Model Files',
     'datasets': 'Dataset Files',
 }
+
+# Add a global queue for training messages
+training_queue = queue.Queue()
+
+# Add a global variable to track the training process
+training_process = None
 
 def get_hardware_info():
     try:
@@ -234,9 +245,30 @@ def download_model(filename):
 def download_dataset(filename):
     return send_file(os.path.join(DATASET_DIR, filename), as_attachment=True)
 
-# Train dataset using all the log files in the logs directory with the given dimension
-@app.route('/api/train', methods=['POST'])
-def start_training():
+def training_stream():
+    def generate():
+        while True:
+            try:
+                message = training_queue.get(timeout=30)  # Add timeout
+                if message == "DONE":
+                    logging.info("Training stream completed")
+                    break
+                logging.info(f"Streaming message: {message}")
+                yield f"data: {json.dumps(message)}\n\n"
+            except queue.Empty:
+                logging.warning("Training queue timeout - no messages for 30 seconds")
+                break
+            except Exception as e:
+                logging.error(f"Error in training stream: {e}")
+                break
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
+@app.route('/api/training/stream')
+def stream():
+    return training_stream()
+
+@app.route('/api/create-dataset', methods=['POST'])
+def create_dataset():
     try:
         data = request.get_json()
         log_files = data.get('logFiles', [])
@@ -244,29 +276,124 @@ def start_training():
         if not log_files:
             return jsonify({"error": "No log files selected"}), 400
 
-        # Extract dimension from the "4d" part of the filename
         dimension_part = [part for part in log_files[0].split('-') if 'd' in part][0]
         dimension = int(dimension_part.replace('d', ''))
-        print(dimension)
-        # Create a temporary dataset name for selected files
+        
         dataset_name = f"training-dataset-{dimension}d-selected.npz"
         dataset_file = Path("datasets") / dataset_name
         
         # Generate dataset from selected files
         raw_perfs, stats = generate_dataset_from_files(log_files, dimension)
-        
-        # Save the dataset
         np.savez_compressed(dataset_file, perfs=raw_perfs)
-        
+
         return jsonify({
             "status": "success",
-            "message": "Dataset generated successfully",
+            "message": "Dataset created",
             "dataset_file": str(dataset_file),
-            "stats": stats
+            "stats": {
+                "total_values": stats["total_values"],
+                "total_interactions": stats["total_interactions"],
+                "total_time": stats["total_time"],
+                "num_performances": stats["num_performances"]
+            }
         })
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/start-training', methods=['POST'])
+def start_training():
+    try:
+        global training_process
+        data = request.get_json()
+        dimension = data.get('dimension')
+        
+        def run_training_command():
+            try:
+                global training_process
+                # Construct the training command
+                command = [
+                    "poetry", "run", "./start_impsy.py", "train",
+                    "-D", str(dimension),
+                    "-S", f"datasets/training-dataset-{dimension}d-selected.npz",
+                    "-M", "s",
+                    "--earlystopping",
+                    "-P", "10",
+                    "-N", "100",
+                    "-B", "64"
+                ]
+
+                logging.info(f"Starting training command: {' '.join(command)}")
+                
+                # Run the command and capture output
+                training_process = subprocess.Popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                    bufsize=1
+                )
+
+                # Stream the output
+                while training_process.poll() is None:  # While process is running
+                    line = training_process.stdout.readline()
+                    if line:
+                        logging.info(f"Training output: {line.strip()}")
+                        training_queue.put({
+                            "message": line.strip(),
+                            "metrics": {"raw_output": True}
+                        })
+
+                # Get remaining output
+                remaining_output, _ = training_process.communicate()
+                if remaining_output:
+                    for line in remaining_output.splitlines():
+                        logging.info(f"Final output: {line.strip()}")
+                        training_queue.put({
+                            "message": line.strip(),
+                            "metrics": {"raw_output": True}
+                        })
+
+                training_queue.put("DONE")
+                training_process = None
+
+            except Exception as e:
+                logging.error(f"Error in training process: {str(e)}")
+                training_queue.put({
+                    "message": f"Error during training: {str(e)}",
+                    "metrics": {"error": str(e)}
+                })
+                training_queue.put("DONE")
+                training_process = None
+
+        # Start training in a separate thread
+        training_thread = threading.Thread(target=run_training_command)
+        training_thread.daemon = True  # Make thread daemon so it doesn't block program exit
+        training_thread.start()
+
+        return jsonify({
+            "status": "success",
+            "message": "Training process started"
+        })
+
+    except Exception as e:
+        logging.error(f"Error starting training: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Add a new endpoint to check training status
+@app.route('/api/training/status', methods=['GET'])
+def training_status():
+    global training_process
+    if training_process is not None:
+        is_running = training_process.poll() is None
+        return jsonify({
+            "is_running": is_running,
+            "pid": training_process.pid if is_running else None
+        })
+    return jsonify({
+        "is_running": False,
+        "pid": None
+    })
 
 @click.command()
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useLocation } from 'react-router-dom';
-import LeftSide from './components/home/leftSide';
-import RightSide from './components/home/rightSide';
+import LeftSide from './components/home/LeftSide';
+import RightSide from './components/home/RightSide';
 import ipadEnsemble from './assets/images/ipad-ensemble.jpg';
 import metatoneHands from './assets/images/metatone-hands-header.jpg';
 

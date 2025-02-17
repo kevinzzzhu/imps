@@ -9,6 +9,7 @@ import SplomGraph from '../logVis/SplomGraph';
 import ParallelGraph from '../logVis/ParallelGraph';
 import ViolinGraph from '../logVis/ViolinGraph';
 import OscillationGraph from '../logVis/OscillationGraph';
+import TrainingVisualizer from './TrainingVisualizer';
 
 const Container = styled.div`
     display: flex;
@@ -294,6 +295,9 @@ function LeftSide() {
         customEndDate: '',
         customDimension: ''
     });
+    const [showTrainingDialog, setShowTrainingDialog] = useState(false);
+    const [showTrainingVisualizer, setShowTrainingVisualizer] = useState(false);
+    const [trainingStats, setTrainingStats] = useState(null);
 
     useEffect(() => {
         fetchLogFiles();
@@ -388,33 +392,25 @@ function LeftSide() {
         });
     };
 
-    // Add handler for train button
-    const handleTrain = async () => {
-        if (selectedLogs.length === 0) {
-            alert('Please select at least one log file');
-            return;
-        }
-
+    // Rename the function to be more descriptive
+    const handleCreateDataset = async () => {
         try {
-            setLoading(true);  // Add loading state
-            const response = await axios.post('/api/train', {
+            const response = await axios.post('/api/create-dataset', {  // renamed endpoint
                 logFiles: selectedLogs
             });
             
-            // Show training stats
-            const stats = response.data.stats;
-            alert(
-                `Training started successfully!\n\n` +
-                `Total values: ${stats.total_values}\n` +
-                `Total interactions: ${stats.total_interactions}\n` +
-                `Total time: ${stats.total_time.toFixed(2)}s\n` +
-                `Number of performances: ${stats.num_performances}`
-            );
+            if (response.data.status === 'success') {
+                setTrainingStats({
+                    totalValues: response.data.stats.total_values,
+                    totalInteractions: response.data.stats.total_interactions,
+                    totalTime: response.data.stats.total_time,
+                    numPerformances: response.data.stats.num_performances,
+                    datasetFile: response.data.dataset_file
+                });
+                setShowTrainingDialog(true);
+            }
         } catch (error) {
-            console.error('Error starting training:', error);
-            alert('Failed to start training: ' + error.response?.data?.error || error.message);
-        } finally {
-            setLoading(false);
+            console.error('Failed to create dataset:', error);
         }
     };
 
@@ -480,6 +476,21 @@ function LeftSide() {
 
         return pass;
     });
+
+    const handleTrainingDialogClose = async () => {
+        setShowTrainingDialog(false);
+        setShowTrainingVisualizer(true);
+        
+        // Start the actual training process
+        try {
+            await axios.post('/api/start-training', {
+                dimension: selectedDimension,
+                datasetFile: `training-dataset-${selectedDimension}d-selected.npz`
+            });
+        } catch (error) {
+            console.error('Failed to start training process:', error);
+        }
+    };
 
     return (
         <Container>
@@ -605,7 +616,7 @@ function LeftSide() {
                 <ButtonContainer>
                     <button>Import</button>
                     <button 
-                        onClick={handleTrain}
+                        onClick={handleCreateDataset}
                         disabled={selectedLogs.length === 0}
                         style={{
                             opacity: selectedLogs.length === 0 ? 0.5 : 1,
@@ -736,6 +747,56 @@ function LeftSide() {
                     </LogContent>
                 )}
             </MainContent>
+
+            {/* Training Started Dialog */}
+            <Modal
+                open={showTrainingDialog}
+                onClose={handleTrainingDialogClose}
+            >
+                <Box sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 400,
+                    bgcolor: 'background.paper',
+                    boxShadow: 24,
+                    p: 4,
+                    borderRadius: 2,
+                }}>
+                    <Typography variant="h6" component="h2" gutterBottom>
+                        Dataset created successfully!
+                    </Typography>
+                    {trainingStats && (
+                        <Box sx={{ mt: 2, mb: 3 }}>
+                            <Typography>Total values: {trainingStats.totalValues}</Typography>
+                            <Typography>Total interactions: {trainingStats.totalInteractions}</Typography>
+                            <Typography>Total time: {trainingStats.totalTime.toFixed(2)}s</Typography>
+                            <Typography>Number of performances: {trainingStats.numPerformances}</Typography>
+                            <Typography sx={{ mt: 2, color: 'text.secondary', fontSize: '0.9em' }}>
+                                Dataset saved as: <br/>
+                                <code style={{ backgroundColor: 'rgba(0,0,0,0.05)', padding: '2px 4px' }}>
+                                    ./datasets/{trainingStats.datasetFile.split('/').pop()}
+                                </code>
+                            </Typography>
+                        </Box>
+                    )}
+                    <Button 
+                        onClick={handleTrainingDialogClose}
+                        variant="contained"
+                        sx={{ mt: 2 }}
+                    >
+                        Start Training
+                    </Button>
+                </Box>
+            </Modal>
+
+            {/* Training Visualizer */}
+            {showTrainingVisualizer && (
+                <TrainingVisualizer 
+                    onClose={() => setShowTrainingVisualizer(false)}
+                />
+            )}
         </Container>
     );
 }

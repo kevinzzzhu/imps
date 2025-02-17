@@ -58,7 +58,7 @@ def train_mdrnn(
     save_location: str = "models",
     save_model: bool = True,
     save_weights: bool = False,
-    save_tflite: bool = True, 
+    save_tflite: bool = True,
 ):
     """Loads a dataset, creates a model and runs the training procedure."""
     import impsy.mdrnn as mdrnn
@@ -124,7 +124,7 @@ def train_mdrnn(
         early_stopping=early_stopping,
         save_location=save_location,
         validation_split=validation_split,
-        patience=patience,
+        patience=patience
     )
 
     # Save final Model
