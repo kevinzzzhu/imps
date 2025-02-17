@@ -285,21 +285,30 @@ def start_training():
         global training_process
         data = request.get_json()
         dimension = data.get('dimension')
-        
+        model_size = data.get('modelSize', 's')  # Default to 's' if not provided
+        early_stopping = data.get('earlyStoppingEnabled', True)  # Default to True
+        patience = data.get('patience', 10)  # Default to 10
+        num_epochs = data.get('numEpochs', 100)  # Default to 100
+        batch_size = data.get('batchSize', 64)  # Default to 64
+
         def run_training_command():
             try:
                 global training_process
-                # Construct the training command
+                # Construct the training command with new parameters
                 command = [
                     "poetry", "run", "./start_impsy.py", "train",
                     "-D", str(dimension),
                     "-S", f"datasets/training-dataset-{dimension}d-selected.npz",
-                    "-M", "s",
-                    "--earlystopping",
-                    "-P", "10",
-                    "-N", "100",
-                    "-B", "64"
+                    "-M", model_size,
+                    "-N", str(num_epochs),
+                    "-B", str(batch_size)
                 ]
+
+                # Add early stopping options if enabled
+                if early_stopping:
+                    command.extend(["--earlystopping", "-P", str(patience)])
+                else:
+                    command.append("--no-earlystopping")
 
                 logging.info(f"Starting training command: {' '.join(command)}")
                 
@@ -351,7 +360,15 @@ def start_training():
 
         return jsonify({
             "status": "success",
-            "message": "Training process started"
+            "message": "Training process started",
+            "config": {
+                "dimension": dimension,
+                "modelSize": model_size,
+                "earlyStoppingEnabled": early_stopping,
+                "patience": patience,
+                "numEpochs": num_epochs,
+                "batchSize": batch_size
+            }
         })
 
     except Exception as e:

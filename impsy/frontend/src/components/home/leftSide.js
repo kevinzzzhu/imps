@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, List, ListItem, Box, Modal, Paper, Button } from '@mui/material';
+import { Typography, List, ListItem, Box, Modal, Paper, Button, Select, MenuItem, FormControl, InputLabel, Switch, FormControlLabel, TextField } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
 import TimeSeriesGraph from '../logVis/TimeSeriesGraph';
 import DelaunayGraph from '../logVis/DelaunayGraph';
@@ -9,7 +9,6 @@ import SplomGraph from '../logVis/SplomGraph';
 import ParallelGraph from '../logVis/ParallelGraph';
 import ViolinGraph from '../logVis/ViolinGraph';
 import OscillationGraph from '../logVis/OscillationGraph';
-import TrainingVisualizer from './TrainingVisualizer';
 
 const Container = styled.div`
     display: flex;
@@ -299,6 +298,13 @@ const LeftSide = ({ onTrainingStart }) => {
     });
     const [showTrainingDialog, setShowTrainingDialog] = useState(false);
     const [trainingStats, setTrainingStats] = useState(null);
+    const [trainingConfig, setTrainingConfig] = useState({
+        modelSize: 's',
+        earlyStoppingEnabled: true,
+        patience: 10,
+        numEpochs: 100,
+        batchSize: 64
+    });
 
     useEffect(() => {
         fetchLogFiles();
@@ -478,19 +484,27 @@ const LeftSide = ({ onTrainingStart }) => {
         return pass;
     });
 
-    const handleTrainingDialogClose = async () => {
+    // Separate close and train actions
+    const handleModalClose = () => {
+        setShowTrainingDialog(false);
+    };
+
+    const handleStartTraining = async () => {
         setShowTrainingDialog(false);
         
-        // Call the onTrainingStart prop to notify parent
         if (onTrainingStart) {
             onTrainingStart();
         }
         
-        // Start the actual training process
         try {
             await axios.post('/api/start-training', {
                 dimension: selectedDimension,
-                datasetFile: `training-dataset-${selectedDimension}d-selected.npz`
+                datasetFile: `training-dataset-${selectedDimension}d-selected.npz`,
+                modelSize: trainingConfig.modelSize,
+                earlyStoppingEnabled: trainingConfig.earlyStoppingEnabled,
+                patience: trainingConfig.patience,
+                numEpochs: trainingConfig.numEpochs,
+                batchSize: trainingConfig.batchSize
             });
         } catch (error) {
             console.error('Failed to start training process:', error);
@@ -756,7 +770,7 @@ const LeftSide = ({ onTrainingStart }) => {
             {/* Training Started Dialog */}
             <Modal
                 open={showTrainingDialog}
-                onClose={handleTrainingDialogClose}
+                onClose={handleModalClose}
             >
                 <Box sx={{
                     position: 'absolute',
@@ -766,19 +780,20 @@ const LeftSide = ({ onTrainingStart }) => {
                     width: 400,
                     bgcolor: 'background.paper',
                     boxShadow: 24,
-                    p: 4,
+                    p: 3,
                     borderRadius: 2,
                 }}>
-                    <Typography variant="h6" component="h2" gutterBottom>
+                    <Typography variant="h6" component="h2" gutterBottom sx={{ fontSize: '1.1rem' }}>
                         Dataset created successfully!
                     </Typography>
+                    
                     {trainingStats && (
-                        <Box sx={{ mt: 2, mb: 3 }}>
-                            <Typography>Total values: {trainingStats.totalValues}</Typography>
-                            <Typography>Total interactions: {trainingStats.totalInteractions}</Typography>
-                            <Typography>Total time: {trainingStats.totalTime.toFixed(2)}s</Typography>
-                            <Typography>Number of performances: {trainingStats.numPerformances}</Typography>
-                            <Typography sx={{ mt: 2, color: 'text.secondary', fontSize: '0.9em' }}>
+                        <Box sx={{ mt: 1, mb: 2 }}>
+                            <Typography sx={{ fontSize: '0.9rem' }}>Total values: {trainingStats.totalValues}</Typography>
+                            <Typography sx={{ fontSize: '0.9rem' }}>Total interactions: {trainingStats.totalInteractions}</Typography>
+                            <Typography sx={{ fontSize: '0.9rem' }}>Total time: {trainingStats.totalTime.toFixed(2)}s</Typography>
+                            <Typography sx={{ fontSize: '0.9rem' }}>Number of performances: {trainingStats.numPerformances}</Typography>
+                            <Typography sx={{ mt: 1, color: 'text.secondary', fontSize: '0.8rem' }}>
                                 Dataset saved as: <br/>
                                 <code style={{ backgroundColor: 'rgba(0,0,0,0.05)', padding: '2px 4px' }}>
                                     ./datasets/{trainingStats.datasetFile.split('/').pop()}
@@ -786,10 +801,85 @@ const LeftSide = ({ onTrainingStart }) => {
                             </Typography>
                         </Box>
                     )}
+
+                    <Typography variant="h6" sx={{ mt: 2, mb: 1, fontSize: '1rem' }}>
+                        Training Configuration (Optional)
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Model Size</InputLabel>
+                            <Select
+                                value={trainingConfig.modelSize}
+                                onChange={(e) => setTrainingConfig(prev => ({ ...prev, modelSize: e.target.value }))}
+                                label="Model Size"
+                            >
+                                <MenuItem value="xxs">XXS - Extra Extra Small</MenuItem>
+                                <MenuItem value="xs">XS - Extra Small</MenuItem>
+                                <MenuItem value="s">S - Small (Default)</MenuItem>
+                                <MenuItem value="m">M - Medium</MenuItem>
+                                <MenuItem value="l">L - Large</MenuItem>
+                                <MenuItem value="xl">XL - Extra Large</MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={trainingConfig.earlyStoppingEnabled}
+                                    onChange={(e) => setTrainingConfig(prev => ({ 
+                                        ...prev, 
+                                        earlyStoppingEnabled: e.target.checked 
+                                    }))}
+                                    size="small"
+                                />
+                            }
+                            label={<Typography sx={{ fontSize: '0.9rem' }}>Early Stopping</Typography>}
+                        />
+
+                        {trainingConfig.earlyStoppingEnabled && (
+                            <TextField
+                                size="small"
+                                type="number"
+                                label="Patience"
+                                value={trainingConfig.patience}
+                                onChange={(e) => setTrainingConfig(prev => ({ 
+                                    ...prev, 
+                                    patience: parseInt(e.target.value) 
+                                }))}
+                                helperText="Number of epochs to wait before early stopping"
+                            />
+                        )}
+
+                        <TextField
+                            size="small"
+                            type="number"
+                            label="Number of Epochs"
+                            value={trainingConfig.numEpochs}
+                            onChange={(e) => setTrainingConfig(prev => ({ 
+                                ...prev, 
+                                numEpochs: parseInt(e.target.value) 
+                            }))}
+                        />
+
+                        <TextField
+                            size="small"
+                            type="number"
+                            label="Batch Size"
+                            value={trainingConfig.batchSize}
+                            onChange={(e) => setTrainingConfig(prev => ({ 
+                                ...prev, 
+                                batchSize: parseInt(e.target.value) 
+                            }))}
+                        />
+                    </Box>
+
                     <Button 
-                        onClick={handleTrainingDialogClose}
+                        onClick={handleStartTraining}
                         variant="contained"
                         sx={{ mt: 2 }}
+                        fullWidth
+                        size="small"
                     >
                         Start Training
                     </Button>
