@@ -395,7 +395,7 @@ function RightSide() {
         <Container>
             <LogList>
                 <StyledTypography variant="h6" gutterBottom>
-                    Select Log Files
+                    Select Models (Configs)
                 </StyledTypography>
                 <LogListContent>
                     {loading ? (

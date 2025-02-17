@@ -195,6 +195,7 @@ const NavigationButton = styled.button`
     animation: ${props => props.show ? 'slideButton 0.5s ease-out forwards' : 'none'};
     animation-delay: 0.2s;
     pointer-events: ${props => props.show ? 'auto' : 'none'};
+    transition: all 0.5s ease;
 
     @keyframes slideButton {
         from {
@@ -209,8 +210,12 @@ const NavigationButton = styled.button`
 
     &:hover {
         transform: translateY(-50%) ${props => props.side === 'left' 
-            ? 'translateX(2px)' 
-            : 'translateX(-2px)'
+            ? 'translateX(4px)' 
+            : 'translateX(-4px)'
+        };
+        box-shadow: ${props => props.side === 'left'
+            ? '4px 0 15px rgba(0, 0, 0, 0.3)'
+            : '-4px 0 15px rgba(0, 0, 0, 0.3)'
         };
     }
 `;

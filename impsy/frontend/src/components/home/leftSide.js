@@ -823,7 +823,7 @@ const LeftSide = ({ onTrainingStart }) => {
                             </Select>
                         </FormControl>
 
-                        <FormControlLabel
+                        <FormControlLabel sx={{ marginLeft: '0px' }}
                             control={
                                 <Switch
                                     checked={trainingConfig.earlyStoppingEnabled}
