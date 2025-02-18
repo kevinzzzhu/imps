@@ -232,7 +232,7 @@ class PredictiveMusicMDRNN(object):
             monitor="val_loss", mode="min", verbose=1, patience=patience
         )
         tensorboard_callback = tf.keras.callbacks.TensorBoard(
-            log_dir=save_location / self.model_name / 'train',
+            log_dir=save_location / self.model_name,
             histogram_freq=0,
             write_graph=True,
             update_freq="epoch",

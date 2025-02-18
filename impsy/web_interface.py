@@ -20,6 +20,8 @@ import logging
 import tensorflow as tf
 from tensorboard import program
 import socket
+import time
+from tensorboard.backend.event_processing import event_accumulator
 
 app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
 app.secret_key = "impsywebui"
@@ -409,52 +411,104 @@ def stream():
                 break
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
-def find_free_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', 0))
-        s.listen(1)
-        port = s.getsockname()[1]
-    return port
+# def find_free_port():
+#     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+#         s.bind(('', 0))
+#         s.listen(1)
+#         port = s.getsockname()[1]
+#     return port
 
-def start_tensorboard(logdir):
-    global tensorboard_thread, tensorboard_port
+# def start_tensorboard(logdir):
+#     global tensorboard_thread, tensorboard_port
     
-    # Stop existing TensorBoard if running
-    if tensorboard_thread is not None:
-        tensorboard_port = None
-        tensorboard_thread = None
+#     # Stop existing TensorBoard if running
+#     if tensorboard_thread is not None:
+#         tensorboard_port = None
+#         tensorboard_thread = None
 
-    # Find an available port
-    tensorboard_port = find_free_port()
+#     # Find an available port
+#     tensorboard_port = find_free_port()
     
-    def run_tensorboard():
-        tb = program.TensorBoard()
-        tb.configure(argv=[None, '--logdir', logdir, '--port', str(tensorboard_port)])
-        tb.main()
+#     def run_tensorboard():
+#         subprocess.run([
+#             "tensorboard",
+#             "--logdir", logdir,
+#             "--port", str(tensorboard_port),
+#             "--bind_all"  # Allow connections from any IP
+#         ])
     
-    tensorboard_thread = threading.Thread(target=run_tensorboard, daemon=True)
-    tensorboard_thread.start()
-    return tensorboard_port
+#     tensorboard_thread = threading.Thread(target=run_tensorboard, daemon=True)
+#     tensorboard_thread.start()
+    
+#     # Give TensorBoard a moment to start
+#     time.sleep(3)
+    
+#     return tensorboard_port
 
-@app.route('/api/models/<model>/tensorboard', methods=['GET'])
+@app.route('/api/models/<model>/tensorboard/train', methods=['GET'])
 def get_model_tensorboard(model):
     try:
-        print(f"Getting tensorboard for model: {model}")    
+        # Remove file extensions to get base model name
+        base_model_name = model.replace('-ckpt.keras', '').replace('.keras', '').replace('.tflite', '')
+        
         # Get the model's tensorboard directory
-        model_dir = Path(MODEL_DIR) / model / 'train'
-        
+        model_dir = Path(MODEL_DIR) / base_model_name / 'train'
+
+        print(f"Looking for TensorBoard logs in: {model_dir}")    
+
         if not model_dir.exists():
+            print(f"Directory not found: {model_dir}")
             return jsonify({'error': 'TensorBoard logs not found'}), 404
+
+        # Find all event files in the directory
+        event_files = list(model_dir.glob('events.out.tfevents.*'))
+        if not event_files:
+            print("No event files found")
+            return jsonify({'error': 'No TensorBoard event files found'}), 404
+
+        # Load and combine data from all event files
+        metrics = {'epoch_loss': []}
+        for event_file in sorted(event_files):
+            print(f"Processing event file: {event_file}")
+            ea = event_accumulator.EventAccumulator(
+                str(event_file),
+                size_guidance={  # Increase size limits
+                    event_accumulator.SCALARS: 0,  # 0 means load all
+                    event_accumulator.TENSORS: 0
+                }
+            )
+            ea.Reload()
             
-        # Start TensorBoard with the model's log directory
-        port = start_tensorboard(str(model_dir))
+            # Get available tags
+            tags = ea.Tags()
+            print(f"Available tags in {event_file}: {tags}")
+            
+            # Process tensor events
+            if 'epoch_loss' in tags.get('tensors', []):
+                events = ea.Tensors('epoch_loss')
+                print(f"Found {len(events)} events in {event_file}")
+                
+                for event in events:
+                    metrics['epoch_loss'].append({
+                        'step': event.step,
+                        'value': float(tf.make_ndarray(event.tensor_proto)),
+                        'wall_time': event.wall_time
+                    })
+
+        # Sort by step to ensure proper ordering
+        metrics['epoch_loss'].sort(key=lambda x: x['step'])
         
+        print(f"Total events collected: {len(metrics['epoch_loss'])}")
+        print(f"Step range: {metrics['epoch_loss'][0]['step']} to {metrics['epoch_loss'][-1]['step']}")
+        print(f"Final metrics: {metrics}")
+
         return jsonify({
-            'tensorboard_url': f'http://localhost:{port}',
+            'metrics': metrics,
             'success': True
         })
         
     except Exception as e:
+        print(f"Error getting model details: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @click.command()

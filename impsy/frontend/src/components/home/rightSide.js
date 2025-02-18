@@ -3,6 +3,30 @@ import styled from 'styled-components';
 import axios from 'axios';
 import { Typography, List, ListItem, Box, Modal, Paper, Button, Select, MenuItem, FormControl, InputLabel, TextField } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    TimeScale
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+// Register Chart.js components
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    TimeScale
+);
 
 const Container = styled.div`
     display: flex;
@@ -201,15 +225,13 @@ const StyledModal = styled(Modal)`
 `;
 
 const ModalContent = styled.div`
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 80vw;
-    max-height: 90vh;
-    background-color: white;
+    position: relative;
+    background-color: #ffffff;
     padding: 20px;
     border-radius: 8px;
+    max-width: 1250px;
+    width: 70%;
+    max-height: 95vh;
     overflow-y: auto;
 `;
 
@@ -228,24 +250,95 @@ const CloseButton = styled.button`
     }
 `;
 
+const ChartContainer = styled.div`
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    max-width: 1200px;
+    width: 100%;
+    height: 500px;
+`;
+
+const ChartControls = styled.div`
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+`;
+
+const ChartControl = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label {
+        font-size: 12px;
+        color: #666;
+    }
+
+    select, input {
+        padding: 4px 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+        width: 120px;
+    }
+
+    input[type="number"] {
+        width: 80px;
+    }
+`;
+
+const TabContainer = styled.div`
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    width: 100%;
+`;
+
+const Tab = styled.button`
+    flex: 1;
+    padding: 8px 16px;
+    background: ${props => props.active ? '#3498db' : '#f5f5f5'};
+    color: ${props => props.active ? 'white' : '#333'};
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: ${props => props.active ? '#3498db' : '#e0e0e0'};
+    }
+`;
+
 const RightSide = () => {
     const [models, setModels] = useState([]);
     const [selectedModel, setSelectedModel] = useState(null);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
-    const [modelContent, setModelContent] = useState('');
     const [selectedDimension, setSelectedDimension] = useState(null);
     const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
         dimension: 'all',
         timeRange: 'all',
-        fileType: 'all',
+        fileType: '.keras',
         customStartDate: '',
         customEndDate: '',
         customDimension: ''
     });
-    const [tensorboardUrl, setTensorboardUrl] = useState(null);
+    const [metrics, setMetrics] = useState(null);
+    const [chartSettings, setChartSettings] = useState({
+        smoothing: 0.6,
+        xAxis: 'step',
+        yScaleType: 'linear',
+        ignoreOutliers: true
+    });
+    const [activeTab, setActiveTab] = useState('train');
 
     useEffect(() => {
         const fetchModels = async () => {
@@ -271,14 +364,12 @@ const RightSide = () => {
             setSelectedModel(model);
             setModalOpen(true);
             
-            // Get TensorBoard URL
-            const tbResponse = await axios.get(`/api/models/${model}/tensorboard`);
+            // Get TensorBoard metrics
+            const tbResponse = await axios.get(`/api/models/${model}/tensorboard/train`);
             if (tbResponse.data.success) {
-                setTensorboardUrl(tbResponse.data.tensorboard_url);
+                setMetrics(tbResponse.data.metrics);
+                console.log("TensorBoard metrics:", tbResponse.data.metrics);
             }
-            
-            const response = await axios.get(`/api/models/${model}`);
-            setModelContent(response.data.content);
         } catch (error) {
             console.error('Error fetching model details:', error);
             alert('Failed to fetch model details');
@@ -390,6 +481,65 @@ const RightSide = () => {
 
         return pass;
     });
+
+    const smoothData = (data, factor) => {
+        if (!data || data.length === 0) return [];
+        let smoothed = [];
+        let lastValue = data[0].value;
+        
+        for (let point of data) {
+            const currentValue = point.value;
+            const smoothedValue = lastValue * factor + currentValue * (1 - factor);
+            smoothed.push({
+                ...point,
+                value: smoothedValue
+            });
+            lastValue = smoothedValue;
+        }
+        
+        return smoothed;
+    };
+
+    const formatMetricsData = (metricsData) => {
+        if (!metricsData) return null;
+
+        const datasets = Object.entries(metricsData).map(([metricName, values], index) => {
+            // Add raw data as a background line
+            const rawData = {
+                label: 'Raw',  // Simplified label
+                data: values.map(v => ({
+                    x: v.step,
+                    y: v.value
+                })),
+                borderColor: 'rgba(200, 200, 200, 1)',
+                tension: 0.1,
+                pointRadius: 0,
+                borderWidth: 1,
+                order: 2,
+                hidden: false
+            };
+
+            // Smoothed data as the main line
+            const smoothedData = smoothData(values, chartSettings.smoothing);
+            const smoothedLine = {
+                label: 'Smoothed', 
+                data: smoothedData.map(v => ({
+                    x: v.step,
+                    y: v.value
+                })),
+                borderColor: `hsl(${index * 137.5}, 70%, 50%)`,
+                backgroundColor: `hsl(${index * 137.5}, 70%, 50%)`,
+                tension: 0.1,
+                pointRadius: 0,
+                borderWidth: 2,
+                order: 1
+            };
+
+            return [rawData, smoothedLine];
+        }).flat();
+
+        return { datasets };
+    };
 
     return (
         <Container>
@@ -553,33 +703,127 @@ const RightSide = () => {
                         {selectedModel}
                     </Typography>
                     
-                    {tensorboardUrl && (
-                        <Box sx={{ mb: 2, height: '60vh' }}>
-                            <iframe
-                                src={tensorboardUrl}
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                }}
-                                title="TensorBoard"
-                            />
-                        </Box>
-                    )}
+                    <TabContainer>
+                        <Tab 
+                            active={activeTab === 'train'} 
+                            onClick={() => setActiveTab('train')}
+                        >
+                            Train
+                        </Tab>
+                        <Tab 
+                            active={activeTab === 'validation'} 
+                            onClick={() => setActiveTab('validation')}
+                        >
+                            Validation
+                        </Tab>
+                    </TabContainer>
 
-                    <Box sx={{ 
-                        whiteSpace: 'pre-wrap', 
-                        fontFamily: 'monospace',
-                        fontSize: '14px',
-                        backgroundColor: '#f5f5f5',
-                        padding: '15px',
-                        borderRadius: '4px',
-                        maxHeight: '30vh',
-                        overflow: 'auto'
-                    }}>
-                        {modelContent}
-                    </Box>
+                    {metrics && (
+                        <ChartContainer>
+                                <ChartControl>
+                                    <label>Smoothing</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="0.99"
+                                        step="0.01"
+                                        value={chartSettings.smoothing}
+                                        onChange={(e) => setChartSettings(prev => ({
+                                            ...prev,
+                                            smoothing: parseFloat(e.target.value)
+                                        }))}
+                                    />
+                                </ChartControl>
+                            <div style={{ height: 'calc(100% - 60px)' }}>
+                                <Line
+                                    data={formatMetricsData(metrics)}
+                                    options={{
+                                        responsive: true,
+                                        maintainAspectRatio: true,
+                                        aspectRatio: 1.8,
+                                        animation: false,
+                                        spanGaps: true,
+                                        normalized: true,
+                                        parsing: false,
+                                        interaction: {
+                                            mode: 'nearest',
+                                            axis: 'x',
+                                            intersect: false
+                                        },
+                                        scales: {
+                                            x: {
+                                                type: 'linear',
+                                                display: true,
+                                                title: {
+                                                    display: true,
+                                                    text: chartSettings.xAxis.charAt(0).toUpperCase() + chartSettings.xAxis.slice(1)
+                                                },
+                                                grid: {
+                                                    color: '#e0e0e0'
+                                                }
+                                            },
+                                            y: {
+                                                type: chartSettings.yScaleType,
+                                                display: true,
+                                                title: {
+                                                    display: true,
+                                                    text: 'Value'
+                                                },
+                                                grid: {
+                                                    color: '#e0e0e0'
+                                                }
+                                            }
+                                        },
+                                        plugins: {
+                                            title: {
+                                                display: true,
+                                                text: 'Training Epoch Loss',
+                                                font: {
+                                                    size: 16,
+                                                    weight: 'normal'
+                                                },
+                                                padding: {
+                                                    bottom: 20
+                                                }
+                                            },
+                                            legend: {
+                                                position: 'top',
+                                                labels: {
+                                                    usePointStyle: true,
+                                                    padding: 15,
+                                                    filter: function(legendItem, data) {
+                                                        // Only show the smoothed line in the legend
+                                                        return !legendItem.text.includes('(raw)');
+                                                    }
+                                                }
+                                            },
+                                            tooltip: {
+                                                mode: 'index',
+                                                intersect: false,
+                                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                                padding: 12,
+                                                titleFont: {
+                                                    size: 13
+                                                },
+                                                bodyFont: {
+                                                    size: 12
+                                                },
+                                                callbacks: {
+                                                    label: function(context) {
+                                                        // Only show smoothed values in tooltip
+                                                        if (!context.dataset.label.includes('(raw)')) {
+                                                            return `${context.dataset.label}: ${context.parsed.y.toFixed(4)}`;
+                                                        }
+                                                        return null;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </ChartContainer>
+                    )}
                 </ModalContent>
             </StyledModal>
         </Container>
