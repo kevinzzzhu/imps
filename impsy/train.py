@@ -154,9 +154,10 @@ def train_mdrnn(
             sequence_length=1,
             layers=mdrnn_layers,
         )
-        model_name = inference_mdrnn.model_name
-        model_keras_file = save_location / f"{model_name}.keras"
+        # Use the same timestamp and name as the training model
+        inference_mdrnn.timestamp = mdrnn_manager.timestamp
         inference_mdrnn.model.set_weights(trained_weights)
+        model_keras_file = save_location / f"{model_name}.keras"
         inference_mdrnn.model.save(model_keras_file)
         output["keras_file"] = model_keras_file
 

@@ -1,25 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, List, ListItem, Box, Modal, Paper, Button } from '@mui/material';
+import { Typography, List, ListItem, Box, Modal, Paper, Button, Select, MenuItem, FormControl, InputLabel, TextField } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
-import TimeSeriesGraph from '../logVis/TimeSeriesGraph';
-import DelaunayGraph from '../logVis/DelaunayGraph';
-import SplomGraph from '../logVis/SplomGraph';
-import ParallelGraph from '../logVis/ParallelGraph';
-import ViolinGraph from '../logVis/ViolinGraph';
-import OscillationGraph from '../logVis/OscillationGraph';
 
 const Container = styled.div`
     display: flex;
     height: 100vh;
-    justify-content: flex-end;
+    justify-content: flex-start;
     align-items: center;
     background: transparent;
+    padding: 0 20px;
+    position: relative;
+    transition: transform 0.5s ease-out;
 `;
 
-const LogList = styled.div`
-    width: 500px;
+const ModelList = styled.div`
+    width: 300px;
     background-color: rgba(44, 62, 80, 0.7);
     padding: 20px;
     flex-shrink: 0;
@@ -37,103 +34,99 @@ const LogList = styled.div`
     border-left: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
-const LogListContent = styled.div`
-    overflow-y: auto;
-    flex-grow: 1;
-    
-    /* Hide scrollbar */
-    &::-webkit-scrollbar {
-        display: none;
-    }
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-
-    /* Add grid layout */
-    .MuiList-root {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        padding: 0;
-    }
-`;
-
-const ButtonContainer = styled.div`
+const TitleContainer = styled.div`
     display: flex;
-    gap: 10px;
-    margin-top: 10px;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+`;
 
-    button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        background-color: rgba(52, 152, 219, 0.9);
-        color: white;
-        cursor: pointer;
-        transition: all 0.2s ease;
+const StyledTypography = styled(Typography)`
+    color: white !important;
+    margin-bottom: 10px !important;
+`;
 
-        &:hover:not(:disabled) {
-            background-color: rgba(52, 152, 219, 1);
-            transform: translateY(-1px);
-        }
+const FilterButton = styled.button`
+    background: rgba(52, 152, 219, 0.9);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s ease;
 
-        &:disabled {
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
+    &:hover {
+        background: rgba(52, 152, 219, 1);
+        transform: translateY(-1px);
+    }
+
+    svg {
+        width: 16px;
+        height: 16px;
     }
 `;
 
-const MainContent = styled.div`
-    flex-grow: 1;
-    padding: 20px;
+const FilterMenu = styled.div`
+    position: absolute;
+    top: 20px;
+    right: -150px;
+    background: rgba(44, 62, 80, 0.95);
+    border-radius: 4px;
+    padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
-    align-items: center;
+    gap: 10px;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    
+    /* Animation properties */
+    opacity: ${props => props.show ? 1 : 0};
+    transform: translateX(${props => props.show ? '0' : '-10px'});
+    visibility: ${props => props.show ? 'visible' : 'hidden'};
+    transition: all 0.3s ease-in-out;
+    transform-origin: top right;
+    pointer-events: ${props => props.show ? 'auto' : 'none'};
 `;
 
-const StyledModal = styled(Modal)`
+const FilterSection = styled.div`
     display: flex;
-    align-items: center;
-    justify-content: center;
-`;
+    flex-direction: column;
+    gap: 5px;
 
-const ModalContent = styled(Paper)`
-    padding: 20px;
-    max-width: 80vw;
-    max-height: 80vh;
-    overflow-y: auto;
-    background-color: white;
-    position: relative;
-
-    /* Hide scrollbar for Chrome, Safari and Opera */
-    &::-webkit-scrollbar {
-        display: none;
+    label {
+        color: white;
+        font-size: 0.9rem;
     }
-    
-    /* Hide scrollbar for IE, Edge and Firefox */
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-`;
 
-const CloseButton = styled.button`
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    padding: 5px 10px;
-    border: none;
-    background: #f44336;
-    color: white;
-    cursor: pointer;
-    border-radius: 4px;
-    
-    &:hover {
-        background: #d32f2f;
+    select, input {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        padding: 5px;
+        color: white;
+        font-size: 0.9rem;
+
+        &:focus {
+            outline: none;
+            border-color: rgba(52, 152, 219, 0.8);
+        }
+    }
+
+    input[type="number"] {
+        width: 80px;
     }
 `;
 
-const LogItem = styled.div`
+const ModelItem = styled.div`
     padding: 10px;
-    margin: 5px;
+    margin: 5px 0;
     border-radius: 4px;
     background-color: rgba(255, 255, 255, 0.1);
     color: white;
@@ -148,7 +141,7 @@ const LogItem = styled.div`
         transform: translateX(-2px);
     }
 
-    input[type="checkbox"] {
+    input[type="radio"] {
         cursor: pointer;
         width: 16px;
         height: 16px;
@@ -157,421 +150,440 @@ const LogItem = styled.div`
     }
 `;
 
-const StyledTypography = styled(Typography)`
-    color: white !important;
-    margin-bottom: 10px !important;
+const ModelListContent = styled.div`
+    overflow-y: auto;
+    flex-grow: 1;
+    
+    /* Hide scrollbar */
+    &::-webkit-scrollbar {
+        display: none;
+    }
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 `;
 
-const parseLogData = (content) => {
-    try {
-        const lines = content.trim().split('\n');
-        const data = {
-            dimension: 0,
-            samples: []  // Array of complete data points
-        };
-        
-        lines.forEach(line => {
-            const [timestamp, source, ...values] = line.split(',');
-            if (source === 'interface') {
-                const numericValues = values.map(v => parseFloat(v));
-                data.samples.push({
-                    timestamp: new Date(timestamp),
-                    source: source,
-                    values: numericValues
-                });
-                
-                // Set dimension based on first valid entry
-                if (data.dimension === 0) {
-                    data.dimension = numericValues.length;
-                }
-            }
-        });
-        
-        return {
-            ...data,
-            totalSamples: data.samples.length,
-            timeRange: {
-                start: data.samples[0]?.timestamp,
-                end: data.samples[data.samples.length - 1]?.timestamp
-            }
-        };
-    } catch (error) {
-        console.error('Error parsing log data:', error);
-        return null;
+const ButtonContainer = styled.div`
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+
+    button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
     }
-};
+`;
 
-function RightSide() {
-    const [inputData, setInputData] = useState([]);
-    const [outputData, setOutputData] = useState([]);
-    const [logFiles, setLogFiles] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedLog, setSelectedLog] = useState(null);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [logContent, setLogContent] = useState('');
-    const [logData, setLogData] = useState(null);
-    const [selectedLogs, setSelectedLogs] = useState([]);
-    const [selectedView, setSelectedView] = useState('basic');
-    const [selectedDimension, setSelectedDimension] = useState(null);
+const MainContent = styled.div`
+    flex-grow: 1;
+    height: 80vh;
+    margin-left: 320px;
+    background-color: rgba(44, 62, 80, 0.7);
+    backdrop-filter: blur(8px);
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: ${props => props.show ? 1 : 0};
+    transform: translateX(${props => props.show ? '0' : '-20px'});
+    transition: all 0.3s ease;
+    visibility: ${props => props.show ? 'visible' : 'hidden'};
+`;
 
-    useEffect(() => {
-        fetchLogFiles();
-    }, []);
+const StyledModal = styled(Modal)`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+`;
+
+const ModalContent = styled.div`
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80vw;
+    max-height: 90vh;
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    overflow-y: auto;
+`;
+
+const CloseButton = styled.button`
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
     
-    const fetchLogFiles = async () => {
-        try {
-            const response = await axios.get('/api/logs');
-            setLogFiles(response.data);
-            setLoading(false);  // Set loading to false after fetching data
-        } catch (error) {
-            console.error('Failed to fetch log files:', error);
-            setLoading(false);  // Ensure loading is set to false even if there is an error
-        }
-    };
+    &:hover {
+        color: #000;
+    }
+`;
+
+const RightSide = () => {
+    const [models, setModels] = useState([]);
+    const [selectedModel, setSelectedModel] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modelContent, setModelContent] = useState('');
+    const [selectedDimension, setSelectedDimension] = useState(null);
+    const [error, setError] = useState(null);
+    const [showFilters, setShowFilters] = useState(false);
+    const [filters, setFilters] = useState({
+        dimension: 'all',
+        timeRange: 'all',
+        fileType: 'all',
+        customStartDate: '',
+        customEndDate: '',
+        customDimension: ''
+    });
+    const [tensorboardUrl, setTensorboardUrl] = useState(null);
 
     useEffect(() => {
-        // Fetch log files
-        const fetchLogFiles = async () => {
+        const fetchModels = async () => {
             try {
-                const response = await axios.get('/api/logs');
-                setLogFiles(response.data);
-                setLoading(false);
+                setLoading(true);
+                setError(null);
+                const response = await axios.get('/api/models');
+                setModels(response.data || []);
             } catch (error) {
-                console.error('Error fetching log files:', error);
+                console.error('Error fetching models:', error);
+                setError('Failed to fetch models');
+                setModels([]);
+            } finally {
                 setLoading(false);
             }
         };
 
-        fetchLogFiles();
-
-        // WebSocket connection
-        const ws = new WebSocket('ws://localhost:8080');
-        
-        ws.onopen = () => {
-            console.log('Connected to WebSocket server');
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                // console.log('Received message:', message);
-                
-                if (message.type === 'input') {
-                    setInputData(message.data);
-                } else if (message.type === 'output') {
-                    setOutputData(message.data);
-                }
-            } catch (error) {
-                console.error('Error processing message:', error);
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-
-        ws.onclose = () => {
-            console.log('Disconnected from WebSocket server');
-        };
-
-        // Cleanup
-        return () => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.close();
-            }
-        };
+        fetchModels();
     }, []);
 
-    // Add function to fetch log content
-    const fetchLogContent = async (filename) => {
+    const handleModelClick = async (model) => {
         try {
-            setLogContent("Loading..."); 
-            setModalOpen(true);  
+            setSelectedModel(model);
+            setModalOpen(true);
             
-            const response = await axios.get(`/api/logs/${filename}`, {
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (response.data && response.data.error) {
-                const errorMsg = `Server Error: ${response.data.error}`;
-                console.error(errorMsg);
-                setLogContent(errorMsg);
-            } else {
-                const parsedData = parseLogData(response.data);
-                if (parsedData) {
-                    setLogContent(
-                        `Dimension: ${parsedData.dimension}\n` +
-                        `Total Samples: ${parsedData.totalSamples}\n` +
-                        `Time Range: ${parsedData.timeRange.start.toLocaleString()} - ` +
-                        `${parsedData.timeRange.end.toLocaleString()}\n\n` +
-                        `Raw Data:\n${response.data}`
-                    );
-                    // Store parsed data for visualization
-                    setLogData(parsedData);
-                } else {
-                    setLogContent("Error parsing log data");
-                }
+            // Get TensorBoard URL
+            const tbResponse = await axios.get(`/api/models/${model}/tensorboard`);
+            if (tbResponse.data.success) {
+                setTensorboardUrl(tbResponse.data.tensorboard_url);
             }
+            
+            const response = await axios.get(`/api/models/${model}`);
+            setModelContent(response.data.content);
         } catch (error) {
-            const errorMsg = `Error loading log file: ${error.message}\nDetails: ${JSON.stringify(error.response?.data || {}, null, 2)}`;
-            console.error(errorMsg);
-            setLogContent(errorMsg);
+            console.error('Error fetching model details:', error);
+            alert('Failed to fetch model details');
         }
     };
 
-    // Handle log file click
-    const handleLogClick = (filename) => {
-        setSelectedLog(filename);
-        fetchLogContent(filename);
+    const handleCheckboxChange = (model) => {
+        const dimensionMatch = model.match(/(\d+)d-mdrnn/);
+        const modelDimension = dimensionMatch ? dimensionMatch[1] : null;
+
+        if (selectedModel === model) {
+            setSelectedModel(null);
+            setSelectedDimension(null);
+        } else {
+            setSelectedModel(model);
+            setSelectedDimension(modelDimension);
+        }
     };
 
-    // Add handler for checkbox changes
-    const handleCheckboxChange = (filename) => {
-        // Extract dimension from filename (e.g., "4d" from "2024-08-06T01-15-57-4d-mdrnn.log")
-        const dimensionMatch = filename.match(/(\d+)d-mdrnn\.log$/);
-        const fileDimension = dimensionMatch ? dimensionMatch[1] : null;
-        
-        setSelectedLogs(prev => {
-            if (prev.includes(filename)) {
-                // Unchecking a file
-                const newSelection = prev.filter(f => f !== filename);
-                // If no files are selected, reset selectedDimension
-                if (newSelection.length === 0) {
-                    setSelectedDimension(null);
-                }
-                return newSelection;
-            } else {
-                // Checking a file
-                if (selectedDimension === null) {
-                    // First selection
-                    setSelectedDimension(fileDimension);
-                    return [...prev, filename];
-                } else if (fileDimension === selectedDimension) {
-                    // Same dimension as already selected
-                    return [...prev, filename];
-                } else {
-                    // Different dimension - don't allow selection
-                    alert(`Can only select log files with ${selectedDimension}D. This file is ${fileDimension}D.`);
-                    return prev;
-                }
-            }
-        });
-    };
-
-    // Add handler for train button
-    const handleTrain = async () => {
-        if (selectedLogs.length === 0) {
-            alert('Please select at least one log file');
+    const handleLoad = async () => {
+        if (!selectedModel) {
+            alert('Please select a model first');
             return;
         }
 
         try {
-            setLoading(true);  // Add loading state
-            const response = await axios.post('/api/train', {
-                logFiles: selectedLogs
+            setLoading(true);
+            const response = await axios.post('/api/load-model', {
+                model: selectedModel
             });
-            
-            // Show training stats
-            const stats = response.data.stats;
-            alert(
-                `Training started successfully!\n\n` +
-                `Total values: ${stats.total_values}\n` +
-                `Total interactions: ${stats.total_interactions}\n` +
-                `Total time: ${stats.total_time.toFixed(2)}s\n` +
-                `Number of performances: ${stats.num_performances}`
-            );
+            alert('Model loaded successfully!');
         } catch (error) {
-            console.error('Error starting training:', error);
-            alert('Failed to start training: ' + error.response?.data?.error || error.message);
+            console.error('Error loading model:', error);
+            alert('Failed to load model: ' + error.response?.data?.error || error.message);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleFilterChange = (key, value) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+    };
+
+    const parseModelDate = (filename) => {
+        const match = filename.match(/^(\d{8})-(\d{2}_\d{2}_\d{2})/);
+        if (match) {
+            const [_, date, time] = match;
+            const formattedTime = time.replace(/_/g, ':');
+            const formattedDate = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`;
+            return new Date(`${formattedDate}T${formattedTime}`);
+        }
+        return null;
+    };
+
+    const isWithinTimeRange = (fileDate, range) => {
+        if (!fileDate) return false;
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        switch (range) {
+            case 'today':
+                return fileDate >= today;
+            case 'week':
+                const weekAgo = new Date(now.setDate(now.getDate() - 7));
+                return fileDate >= weekAgo;
+            case 'month':
+                const monthAgo = new Date(now.setMonth(now.getMonth() - 1));
+                return fileDate >= monthAgo;
+            case 'custom':
+                const start = filters.customStartDate ? new Date(filters.customStartDate) : null;
+                const end = filters.customEndDate ? new Date(filters.customEndDate) : null;
+                if (start && end) {
+                    return fileDate >= start && fileDate <= end;
+                }
+                return true;
+            default:
+                return true;
+        }
+    };
+
+    const filteredModels = models.filter(file => {
+        let pass = true;
+        
+        // Filter by dimension
+        if (filters.dimension !== 'all') {
+            const dimensionMatch = file.match(/dim(\d+)/);
+            const fileDimension = dimensionMatch ? dimensionMatch[1] : null;
+            if (filters.dimension === 'custom') {
+                pass = pass && fileDimension === filters.customDimension;
+            } else {
+                pass = pass && fileDimension === filters.dimension;
+            }
+        }
+
+        // Filter by time range
+        if (filters.timeRange !== 'all') {
+            const fileDate = parseModelDate(file);
+            pass = pass && isWithinTimeRange(fileDate, filters.timeRange);
+        }
+
+        // Filter by file type
+        if (filters.fileType !== 'all') {
+            if (filters.fileType === 'checkpoint') {
+                pass = pass && file.includes('-ckpt');
+            } else {
+                pass = pass && file.endsWith(filters.fileType) && !file.includes('-ckpt');
+            }
+        }
+
+        return pass;
+    });
+
     return (
         <Container>
-            <LogList>
-                <StyledTypography variant="h6" gutterBottom>
-                    Select Models (Configs)
-                </StyledTypography>
-                <LogListContent>
+            <ModelList>
+                <TitleContainer>
+                    <StyledTypography variant="h6">
+                        Select Model
+                    </StyledTypography>
+                    
+                    <FilterButton 
+                        onClick={() => setShowFilters(!showFilters)}
+                    >
+                        {showFilters ? 'Hide Filters' : 'Show Filters'}
+                    </FilterButton>
+                </TitleContainer>
+
+                
+                <FilterMenu show={showFilters}>
+                    <FilterSection>
+                        <label>Dimension</label>
+                        <select 
+                            value={filters.dimension}
+                            onChange={(e) => {
+                                handleFilterChange('dimension', e.target.value);
+                                if (e.target.value !== 'custom') {
+                                    handleFilterChange('customDimension', '');
+                                }
+                            }}
+                        >
+                            <option value="all">All Dimensions</option>
+                            <option value="2">2D</option>
+                            <option value="4">4D</option>
+                            <option value="9">9D</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                        {filters.dimension === 'custom' && (
+                            <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={filters.customDimension}
+                                onChange={(e) => handleFilterChange('customDimension', e.target.value)}
+                                placeholder="Enter dimension"
+                            />
+                        )}
+                    </FilterSection>
+
+                    <FilterSection>
+                        <label>File Type</label>
+                        <select 
+                            value={filters.fileType}
+                            onChange={(e) => handleFilterChange('fileType', e.target.value)}
+                        >
+                            <option value="all">All Types</option>
+                            <option value=".keras">Keras</option>
+                            <option value=".h5">H5</option>
+                            <option value=".tflite">TFLite</option>
+                            <option value="checkpoint">Checkpoints</option>
+                        </select>
+                    </FilterSection>
+
+                    <FilterSection>
+                        <label>Time Range</label>
+                        <select 
+                            value={filters.timeRange}
+                            onChange={(e) => handleFilterChange('timeRange', e.target.value)}
+                        >
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">Last Week</option>
+                            <option value="month">Last Month</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                        {filters.timeRange === 'custom' && (
+                            <>
+                                <input
+                                    type="date"
+                                    value={filters.customStartDate}
+                                    onChange={(e) => handleFilterChange('customStartDate', e.target.value)}
+                                    placeholder="Start Date"
+                                />
+                                <input
+                                    type="date"
+                                    value={filters.customEndDate}
+                                    onChange={(e) => handleFilterChange('customEndDate', e.target.value)}
+                                    placeholder="End Date"
+                                />
+                            </>
+                        )}
+                    </FilterSection>
+                </FilterMenu>
+
+                <ModelListContent>
                     {loading ? (
-                        <Audio height="80" width="80" color="green" ariaLabel="loading" />
-                    ) : logFiles.length > 0 ? (
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                            <Audio height="80" width="80" color="white" ariaLabel="loading" />
+                        </div>
+                    ) : error ? (
+                        <div style={{ color: 'white', textAlign: 'center', padding: '20px' }}>
+                            {error}
+                        </div>
+                    ) : filteredModels.length > 0 ? (
                         <List>
-                            {logFiles.map((file, index) => {
-                                const dimensionMatch = file.match(/(\d+)d-mdrnn\.log$/);
-                                const fileDimension = dimensionMatch ? dimensionMatch[1] : null;
-                                const isDisabled = selectedDimension !== null && fileDimension !== selectedDimension;
+                            {filteredModels.map((model, index) => {
+                                const dimensionMatch = model.match(/dim(\d+)/);
+                                const modelDimension = dimensionMatch ? dimensionMatch[1] : null;
+                                const isDisabled = selectedDimension !== null && modelDimension !== selectedDimension;
                                 
                                 return (
-                                    <LogItem 
+                                    <ModelItem 
                                         key={index} 
-                                        onClick={() => handleLogClick(file)}
+                                        onClick={() => handleModelClick(model)}
                                         style={{ 
                                             cursor: 'pointer',
                                             opacity: isDisabled ? 0.5 : 1 
                                         }}
                                     >
                                         <input
-                                            type="checkbox"
-                                            checked={selectedLogs.includes(file)}
+                                            type="radio"
+                                            checked={selectedModel === model}
                                             onChange={(e) => {
                                                 e.stopPropagation();
-                                                handleCheckboxChange(file);
+                                                handleCheckboxChange(model);
                                             }}
                                             onClick={(e) => e.stopPropagation()}
                                             disabled={isDisabled}
                                             style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
                                         />
-                                        {file}
-                                    </LogItem>
+                                        {model}
+                                    </ModelItem>
                                 );
                             })}
                         </List>
                     ) : (
-                        <p>No log files found.</p>
+                        <div style={{ color: 'white', textAlign: 'center', padding: '20px' }}>
+                            No models found.
+                        </div>
                     )}
-                </LogListContent>
+                </ModelListContent>
                 <ButtonContainer>
-                    <button>Import</button>
-                    <button 
-                        onClick={handleTrain}
-                        disabled={selectedLogs.length === 0}
-                        style={{
-                            opacity: selectedLogs.length === 0 ? 0.5 : 1,
-                            cursor: selectedLogs.length === 0 ? 'not-allowed' : 'pointer'
+                    <Button 
+                        onClick={handleLoad}
+                        variant="contained"
+                        size="small"
+                        sx={{
+                            cursor: !selectedModel ? 'not-allowed' : 'pointer'
                         }}
                     >
-                        Train
-                    </button>
+                        Load Model
+                    </Button>
                 </ButtonContainer>
-            </LogList>
+            </ModelList>
 
-            {/* Add Modal */}
             <StyledModal
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
-                aria-labelledby="log-modal-title"
             >
-                <ModalContent elevation={24}>
-                    <CloseButton onClick={() => setModalOpen(false)}>
-                        ×
-                    </CloseButton>
-                    <Typography variant="h6" id="log-modal-title" gutterBottom>
-                        {selectedLog}
+                <ModalContent>
+                    <CloseButton onClick={() => setModalOpen(false)}>×</CloseButton>
+                    <Typography variant="h6" gutterBottom>
+                        {selectedModel}
                     </Typography>
-
-                    {/* Add view selector buttons */}
-                    <Box sx={{ mb: 2, display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <Button 
-                            variant={selectedView === 'basic' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('basic')}
-                        >
-                            Basic View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'delaunay' ? 'contained' : 'outlined'} 
-                            onClick={() => setSelectedView('delaunay')}
-                        >
-                            Delaunay View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'splom' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('splom')}
-                        >
-                            Splom View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'parallel' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('parallel')}
-                        >
-                            Parallel View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'violin' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('violin')}
-                        >
-                            Violin View
-                        </Button>
-                        <Button
-                            variant={selectedView === 'oscillation' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('oscillation')}
-                        >
-                            Oscillation View
-                        </Button>
-                    </Box>
-
-                    {/* Conditional rendering based on selected view */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {selectedView === 'basic' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Basic View</Typography>
-                                {logData && <TimeSeriesGraph data={logData} />}
-                            </Box>
-                        )}
-                        
-                        {selectedView === 'delaunay' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Delaunay View</Typography>
-                                {logData && <DelaunayGraph data={logData} />}
-                            </Box>
-                        )}
-
-                        {selectedView === 'splom' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Splom View</Typography>
-                                {logData && <SplomGraph data={logData} />}
-                            </Box>
-                        )}
-
-                        {selectedView === 'parallel' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Parallel View</Typography>
-                                {logData && <ParallelGraph data={logData} />}
-                            </Box>
-                        )}
-
-                        {selectedView === 'violin' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Violin View</Typography>
-                                {logData && <ViolinGraph data={logData} />}
-                            </Box>
-                        )}
-
-                        {selectedView === 'oscillation' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Oscillation View</Typography>
-                                {logData && <OscillationGraph data={logData} />}
-                            </Box>
-                        )}
-                    </Box>
                     
+                    {tensorboardUrl && (
+                        <Box sx={{ mb: 2, height: '60vh' }}>
+                            <iframe
+                                src={tensorboardUrl}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                }}
+                                title="TensorBoard"
+                            />
+                        </Box>
+                    )}
 
-                    {/* Log content */} 
-                    Raw Data:
                     <Box sx={{ 
-                        mt: 2,
                         whiteSpace: 'pre-wrap', 
                         fontFamily: 'monospace',
                         fontSize: '14px',
                         backgroundColor: '#f5f5f5',
                         padding: '15px',
-                        borderRadius: '4px'
+                        borderRadius: '4px',
+                        maxHeight: '30vh',
+                        overflow: 'auto'
                     }}>
-                        {logContent}
+                        {modelContent}
                     </Box>
                 </ModalContent>
             </StyledModal>
-
-            <MainContent>
-                
-            </MainContent>
         </Container>
     );
-}
+};
 
 export default RightSide;

@@ -54,8 +54,9 @@ def lstm_blank_states(layers: int, units: int):
 
 
 def mdrnn_model_name(dimension: int, n_rnn_layers: int, n_hidden_units: int, n_mixtures: int) -> str:
-    """Returns the name of a model using it's parameters"""
-    name = f"musicMDRNN"
+    """Returns the name of a model using its parameters and current timestamp"""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H_%M_%S")
+    name = f"{timestamp}-musicMDRNN"
     name += f"-dim{dimension}"
     name += f"-layers{n_rnn_layers}"
     name += f"-units{n_hidden_units}"
@@ -181,8 +182,11 @@ class PredictiveMusicMDRNN(object):
             self.inference = False
             self.training = True
         
+        # Add timestamp as class variable
+        self.timestamp = datetime.datetime.now().strftime("%Y%m%d-%H_%M_%S")
+        
         self.model = build_mdrnn_model(self.dimension, self.n_hidden_units, self.n_mixtures, self.n_rnn_layers, self.inference, self.sequence_length)
-        self.model_name = mdrnn_model_name(self.dimension, self.n_rnn_layers, self.n_hidden_units, self.n_mixtures)
+        self.model_name = self.mdrnn_model_name()
         self.model.summary()
         self.reset_lstm_states()
 
@@ -214,7 +218,6 @@ class PredictiveMusicMDRNN(object):
     ):
         """Train the network for a number of epochs with a specific dataset."""
         # Setup callbacks
-        date_string = datetime.datetime.today().strftime("%Y%m%d-%H_%M_%S")
         save_location = Path(save_location)
         checkpoint_path = save_location / f"{self.model_name}-ckpt.keras"
         checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -229,7 +232,7 @@ class PredictiveMusicMDRNN(object):
             monitor="val_loss", mode="min", verbose=1, patience=patience
         )
         tensorboard_callback = tf.keras.callbacks.TensorBoard(
-            log_dir=save_location / f"{date_string}{self.model_name}",
+            log_dir=save_location / self.model_name / 'train',
             histogram_freq=0,
             write_graph=True,
             update_freq="epoch",
@@ -294,6 +297,16 @@ class PredictiveMusicMDRNN(object):
             self.dimension,
         )
         return new_sample
+
+    def mdrnn_model_name(self):
+        """Returns the name of a model using its parameters and timestamp"""
+        name = f"{self.timestamp}-musicMDRNN"
+        name += f"-dim{self.dimension}"
+        name += f"-layers{self.n_rnn_layers}"
+        name += f"-units{self.n_hidden_units}"
+        name += f"-mixtures{self.n_mixtures}"
+        name += f"-scale{SCALE_FACTOR}"
+        return name
 
 
 class MDRNNInferenceModel(abc.ABC):

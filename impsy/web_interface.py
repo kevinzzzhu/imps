@@ -17,6 +17,9 @@ import threading
 import json
 from impsy.train import train_mdrnn
 import logging
+import tensorflow as tf
+from tensorboard import program
+import socket
 
 app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
 app.secret_key = "impsywebui"
@@ -44,6 +47,10 @@ training_queue = queue.Queue()
 
 # Add a global variable to track the training process
 training_process = None
+
+# Add these global variables at the top
+tensorboard_thread = None
+tensorboard_port = None
 
 def get_hardware_info():
     try:
@@ -191,24 +198,14 @@ def models():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-    model_files = [f for f in os.listdir(MODEL_DIR) if f.endswith('.h5') or f.endswith('.tflite')]
-    return jsonify(model_files)
-
-# @app.route('/models', methods=['GET', 'POST'])
-# def models():
-#     if request.method == 'POST':
-#         if 'file' not in request.files:
-#             return redirect(request.url)
-#         file = request.files['file']
-#         if file.filename == '':
-#             return redirect(request.url)
-#         if file and allowed_model_file(file.filename):
-#             filename = secure_filename(file.filename)
-#             file.save(os.path.join(MODEL_DIR, filename))
-#             return redirect(url_for('models'))
+    # For GET request, get and sort model files
+    model_files = [f for f in os.listdir(MODEL_DIR) 
+                    if f.endswith('.h5') or f.endswith('.tflite') or f.endswith('.keras')]
     
-#     model_files = [f for f in os.listdir(MODEL_DIR) if allowed_model_file(f)]
-#     return render_template('models.html', model_files=model_files)
+    # Sort model files by date in filename (newest first)
+    model_files.sort(key=lambda x: x.split('-')[0] + x.split('-')[1] if '-' in x else '', reverse=True)
+    
+    return jsonify(model_files)
 
 # Get the current configuration file
 @app.route('/api/config', methods=['GET'])
@@ -245,6 +242,7 @@ def download_model(filename):
 def download_dataset(filename):
     return send_file(os.path.join(DATASET_DIR, filename), as_attachment=True)
 
+# Create a dataset from selected log files
 @app.route('/api/create-dataset', methods=['POST'])
 def create_dataset():
     try:
@@ -279,6 +277,7 @@ def create_dataset():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Start training
 @app.route('/api/start-training', methods=['POST'])
 def start_training():
     try:
@@ -390,6 +389,7 @@ def training_status():
         "pid": None
     })
 
+# Stream training output (Loop until DONE)
 @app.route('/api/training/stream')
 def stream():
     def generate():
@@ -408,6 +408,54 @@ def stream():
                 logging.error(f"Error in training stream: {e}")
                 break
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
+def find_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
+
+def start_tensorboard(logdir):
+    global tensorboard_thread, tensorboard_port
+    
+    # Stop existing TensorBoard if running
+    if tensorboard_thread is not None:
+        tensorboard_port = None
+        tensorboard_thread = None
+
+    # Find an available port
+    tensorboard_port = find_free_port()
+    
+    def run_tensorboard():
+        tb = program.TensorBoard()
+        tb.configure(argv=[None, '--logdir', logdir, '--port', str(tensorboard_port)])
+        tb.main()
+    
+    tensorboard_thread = threading.Thread(target=run_tensorboard, daemon=True)
+    tensorboard_thread.start()
+    return tensorboard_port
+
+@app.route('/api/models/<model>/tensorboard', methods=['GET'])
+def get_model_tensorboard(model):
+    try:
+        print(f"Getting tensorboard for model: {model}")    
+        # Get the model's tensorboard directory
+        model_dir = Path(MODEL_DIR) / model / 'train'
+        
+        if not model_dir.exists():
+            return jsonify({'error': 'TensorBoard logs not found'}), 404
+            
+        # Start TensorBoard with the model's log directory
+        port = start_tensorboard(str(model_dir))
+        
+        return jsonify({
+            'tensorboard_url': f'http://localhost:{port}',
+            'success': True
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @click.command()
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')
