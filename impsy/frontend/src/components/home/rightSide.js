@@ -57,6 +57,7 @@ const ModelList = styled.div`
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
     transition: width 0.3s ease-out;
+    z-index: 2;
 `;
 
 const TitleContainer = styled.div`
@@ -108,7 +109,7 @@ const FilterMenu = styled.div`
     display: flex;
     flex-direction: column;
     gap: 10px;
-    z-index: 1000;
+    z-index: 9999;
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     
@@ -196,14 +197,23 @@ const ButtonContainer = styled.div`
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    padding: 0 10px;
 
     button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        color: white;
-        cursor: pointer;
-        transition: all 0.2s ease;
+        flex: 1;
+        padding: 6px 12px !important;
+        font-size: 0.9rem !important;
+        min-height: 32px !important;
+        text-transform: none;
+        background-color: rgba(52, 152, 219, 0.9);
+        
+        &:hover {
+            background-color: rgba(52, 152, 219, 1);
+        }
+        
+        &:disabled {
+            background-color: rgba(52, 152, 219, 0.5);
+        }
     }
 `;
 
@@ -223,6 +233,7 @@ const MainContent = styled.div`
     transition: all 0.3s ease;
     visibility: ${props => (props.show && !props.isExtended) ? 'visible' : 'hidden'};
     pointer-events: ${props => (props.show && !props.isExtended) ? 'auto' : 'none'};
+    z-index: 1;
 `;
 
 const ModelContent = styled.div`
@@ -306,15 +317,6 @@ const ChartContainer = styled.div`
         width: 100% !important;
         height: 100% !important;
     }
-`;
-
-const ChartControls = styled.div`
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
-    padding: 8px;
-    background: #f5f5f5;
-    border-radius: 4px;
 `;
 
 const ChartControl = styled.div`
@@ -683,6 +685,37 @@ const RightSide = () => {
         }
     };
 
+    const handleImportModels = async (event) => {
+        const files = event.target.files;
+        if (files.length === 0) return;
+
+        const formData = new FormData();
+        for (let file of files) {
+            formData.append('files', file);
+        }
+
+        try {
+            const response = await axios.post('/api/import-models', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            if (response.data.imported_files.length > 0) {
+                alert(`Successfully imported ${response.data.imported_files.length} model files`);
+                // Refresh the models list
+                const modelsResponse = await axios.get('/api/models');
+                setModels(modelsResponse.data || []);
+            }
+
+            if (response.data.errors.length > 0) {
+                alert('Errors occurred:\n' + response.data.errors.join('\n'));
+            }
+        } catch (error) {
+            alert('Failed to import model files: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
     return (
         <Container>
             <ModelList isExtended={isExtended}>
@@ -821,13 +854,28 @@ const RightSide = () => {
                     )}
                 </ModelListContent>
                 <ButtonContainer>
+                    <input
+                        type="file"
+                        id="model-file-input"
+                        multiple
+                        accept=".h5,.tflite,.keras"
+                        style={{ display: 'none' }}
+                        onChange={handleImportModels}
+                    />
+                    <Button 
+                        onClick={() => document.getElementById('model-file-input').click()}
+                        variant="contained"
+                        size="small"
+                        fullWidth
+                    >
+                        Import
+                    </Button>
                     <Button 
                         onClick={handleLoad}
                         variant="contained"
                         size="small"
-                        sx={{
-                            cursor: !selectedModel ? 'not-allowed' : 'pointer'
-                        }}
+                        fullWidth
+                        disabled={!selectedModel}
                     >
                         Load Model
                     </Button>

@@ -57,24 +57,22 @@ const ButtonContainer = styled.div`
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    padding: 0 10px;
 
     button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
+        flex: 1;
+        padding: 6px 12px !important;
+        font-size: 0.9rem !important;
+        min-height: 32px !important;
+        text-transform: none;
         background-color: rgba(52, 152, 219, 0.9);
-        color: white;
-        cursor: pointer;
-        transition: all 0.2s ease;
-
-        &:hover:not(:disabled) {
+        
+        &:hover {
             background-color: rgba(52, 152, 219, 1);
-            transform: translateY(-1px);
         }
-
+        
         &:disabled {
-            cursor: not-allowed;
-            opacity: 0.7;
+            background-color: rgba(52, 152, 219, 0.5);
         }
     }
 `;
@@ -511,6 +509,35 @@ const LeftSide = ({ onTrainingStart }) => {
         }
     };
 
+    const handleImportLogs = async (event) => {
+        const files = event.target.files;
+        if (files.length === 0) return;
+
+        const formData = new FormData();
+        for (let file of files) {
+            formData.append('files', file);
+        }
+
+        try {
+            const response = await axios.post('/api/import-logs', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            if (response.data.imported_files.length > 0) {
+                alert(`Successfully imported ${response.data.imported_files.length} log files`);
+                fetchLogFiles(); // Refresh the list
+            }
+
+            if (response.data.errors.length > 0) {
+                alert('Errors occurred:\n' + response.data.errors.join('\n'));
+            }
+        } catch (error) {
+            alert('Failed to import log files: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
     return (
         <Container>
             <LogList>
@@ -628,17 +655,31 @@ const LeftSide = ({ onTrainingStart }) => {
                     )}
                 </LogListContent>
                 <ButtonContainer>
-                    <button>Import</button>
-                    <button 
+                    <input
+                        type="file"
+                        id="log-file-input"
+                        multiple
+                        accept=".log"
+                        style={{ display: 'none' }}
+                        onChange={handleImportLogs}
+                    />
+                    <Button 
+                        onClick={() => document.getElementById('log-file-input').click()}
+                        variant="contained"
+                        size="small"
+                        fullWidth
+                    >
+                        Import
+                    </Button>
+                    <Button 
                         onClick={handleCreateDataset}
+                        variant="contained"
+                        size="small"
+                        fullWidth
                         disabled={selectedLogs.length === 0}
-                        style={{
-                            opacity: selectedLogs.length === 0 ? 0.5 : 1,
-                            cursor: selectedLogs.length === 0 ? 'not-allowed' : 'pointer'
-                        }}
                     >
                         Train
-                    </button>
+                    </Button>
                 </ButtonContainer>
             </LogList>
 

@@ -551,6 +551,69 @@ def get_model_validation_tensorboard(model):
         print(f"Error getting validation metrics: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# Add these route handlers for file uploads
+@app.route('/api/import-logs', methods=['POST'])
+def import_logs():
+    try:
+        uploaded_files = request.files.getlist('files')
+        if not uploaded_files:
+            return jsonify({'error': 'No files provided'}), 400
+
+        imported_files = []
+        errors = []
+
+        for file in uploaded_files:
+            if file and allowed_log_file(file.filename):
+                filename = secure_filename(file.filename)
+                try:
+                    file_path = os.path.join(LOGS_DIR, filename)
+                    file.save(file_path)
+                    imported_files.append(filename)
+                except Exception as e:
+                    errors.append(f"Error saving {filename}: {str(e)}")
+            else:
+                errors.append(f"Invalid file type for {file.filename}. Only .log files are allowed.")
+
+        return jsonify({
+            'message': f'Successfully imported {len(imported_files)} files',
+            'imported_files': imported_files,
+            'errors': errors
+        }), 200 if imported_files else 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/import-models', methods=['POST'])
+def import_models():
+    try:
+        uploaded_files = request.files.getlist('files')
+        if not uploaded_files:
+            return jsonify({'error': 'No files provided'}), 400
+
+        imported_files = []
+        errors = []
+
+        for file in uploaded_files:
+            if file and allowed_model_file(file.filename):
+                filename = secure_filename(file.filename)
+                try:
+                    file_path = os.path.join(MODEL_DIR, filename)
+                    file.save(file_path)
+                    imported_files.append(filename)
+                except Exception as e:
+                    errors.append(f"Error saving {filename}: {str(e)}")
+            else:
+                errors.append(f"Invalid file type for {file.filename}. Only .h5, .tflite, and .keras files are allowed.")
+
+        return jsonify({
+            'message': f'Successfully imported {len(imported_files)} files',
+            'imported_files': imported_files,
+            'errors': errors
+        }), 200 if imported_files else 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @click.command()
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')
 @click.option('--port', default=DEFAULT_PORT, help='The port to bind to.')
