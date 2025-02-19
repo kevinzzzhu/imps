@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, Modal, Button } from '@mui/material';
+import { Typography, Modal, Button, Box } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
 import {
     Chart as ChartJS,
@@ -210,7 +210,7 @@ const ButtonContainer = styled.div`
 const MainContent = styled.div`
     flex-grow: 1;
     height: 80vh;
-    margin-left: 320px;
+    margin-left: ${props => props.isExtended ? '320px' : '320px'};
     background-color: rgba(44, 62, 80, 0.7);
     backdrop-filter: blur(8px);
     border-radius: 4px;
@@ -218,10 +218,27 @@ const MainContent = styled.div`
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    opacity: ${props => props.show ? 1 : 0};
-    transform: translateX(${props => props.show ? '0' : '-20px'});
+    opacity: ${props => (props.show && !props.isExtended) ? 1 : 0};
+    transform: translateX(${props => (props.show && !props.isExtended) ? '0' : '-20px'});
     transition: all 0.3s ease;
-    visibility: ${props => props.show ? 'visible' : 'hidden'};
+    visibility: ${props => (props.show && !props.isExtended) ? 'visible' : 'hidden'};
+    pointer-events: ${props => (props.show && !props.isExtended) ? 'auto' : 'none'};
+`;
+
+const ModelContent = styled.div`
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    padding: 20px;
+    
+    /* Hide scrollbar */
+    &::-webkit-scrollbar {
+        display: none;
+    }
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 `;
 
 const StyledModal = styled(Modal)`
@@ -400,6 +417,7 @@ const RightSide = () => {
     const [isExtended, setIsExtended] = useState(false);
     const selectedModelRef = useRef(null);
     const chartRef = useRef(null);
+    const [configContent, setConfigContent] = useState('');
 
     useEffect(() => {
         const fetchModels = async () => {
@@ -439,9 +457,14 @@ const RightSide = () => {
         }
     }, [trainMetrics, validationMetrics, activeTab, chartSettings.smoothing]);
 
+    useEffect(() => {
+        if (selectedModel) {
+            fetchConfig();
+        }
+    }, [selectedModel]);
+
     const handleModelClick = async (model) => {
         try {
-            setSelectedModel(model);
             setModalOpen(true);
             
             // Get TensorBoard metrics for both train and validation
@@ -641,6 +664,25 @@ const RightSide = () => {
         }
     };
 
+    // Update the ExtendButton click handler to also close the filter menu
+    const handleExtendClick = () => {
+        setIsExtended(!isExtended);
+        setShowFilters(false); // Close filter menu when extending/collapsing
+    };
+
+    const fetchConfig = async () => {
+        try {
+            const response = await axios.get('/api/config');
+            const updatedContent = response.data.config_content.replace(
+                /file = "models\/.*"/,
+                `file = "models/${selectedModel}"`
+            );
+            setConfigContent(updatedContent);
+        } catch (error) {
+            console.error('Failed to fetch config:', error);
+        }
+    };
+
     return (
         <Container>
             <ModelList isExtended={isExtended}>
@@ -792,10 +834,48 @@ const RightSide = () => {
                 </ButtonContainer>
 
                 <ExtendButton 
-                    onClick={() => setIsExtended(!isExtended)}
+                    onClick={handleExtendClick}
                     isExtended={isExtended}
                 />
             </ModelList>
+
+            <MainContent 
+                show={selectedModel !== null} 
+                isExtended={isExtended}
+            >
+                {selectedModel && !isExtended && (
+                    <ModelContent>
+                        <Typography variant="h6" style={{ color: 'white', marginBottom: '20px' }}>
+                            Configuration File
+                        </Typography>
+                        
+                        <Box sx={{ 
+                            width: '100%', 
+                            height: 'calc(100% - 60px)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            borderRadius: '4px',
+                            overflow: 'hidden'
+                        }}>
+                            <textarea
+                                value={configContent}
+                                onChange={(e) => setConfigContent(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    padding: '15px',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    color: 'white',
+                                    fontFamily: 'monospace',
+                                    fontSize: '14px',
+                                    resize: 'none',
+                                    outline: 'none'
+                                }}
+                            />
+                        </Box>
+                    </ModelContent>
+                )}
+            </MainContent>
 
             <StyledModal
                 open={modalOpen}
