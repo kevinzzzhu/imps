@@ -77,7 +77,8 @@ function App() {
   body {
     width: 100vw;
     height: 100vh;
-    overflow-x: hidden; // Prevents horizontal scrolling
+    overflow-x: hidden;
+    overflow-y: hidden;
   }
 `;
 
