@@ -15,12 +15,8 @@ import numpy as np
 import queue
 import threading
 import json
-from impsy.train import train_mdrnn
 import logging
 import tensorflow as tf
-from tensorboard import program
-import socket
-import time
 from tensorboard.backend.event_processing import event_accumulator
 
 app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
@@ -106,6 +102,7 @@ def get_routes():
             })
     return page_routes
 
+# Catch all route for the frontend
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def catch_all(path):
@@ -114,14 +111,17 @@ def catch_all(path):
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
+# Get hardware info (About Page)
 @app.route('/api/hardware-info')
 def api_hardware_info():
     return jsonify(get_hardware_info())
 
+# Get software info (About Page)
 @app.route('/api/software-info')
 def api_software_info():
     return jsonify(get_software_info())
 
+# Get all routes in the app (About Page)
 @app.route('/api/routes')
 def api_routes():
     return jsonify([{
@@ -130,7 +130,7 @@ def api_routes():
         'name': ROUTE_NAMES.get(route.endpoint, route.endpoint)
     } for route in app.url_map.iter_rules()])
 
-
+# Get all log files in the logs directory
 @app.route('/api/logs', methods=['GET', 'POST'])
 def logs():
     log_files = [f for f in os.listdir(LOGS_DIR) if f.endswith('.log')]
@@ -140,6 +140,7 @@ def logs():
     
     return jsonify(log_files)
 
+# Get the content of a log file
 @app.route('/api/logs/<filename>')
 def get_log_content(filename):
     try:
