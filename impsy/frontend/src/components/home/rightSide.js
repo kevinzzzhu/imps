@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, List, ListItem, Box, Modal, Paper, Button, Select, MenuItem, FormControl, InputLabel, TextField } from '@mui/material';
+import { Typography, List, Modal, Button } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
 import {
     Chart as ChartJS,
@@ -9,9 +9,6 @@ import {
     LinearScale,
     PointElement,
     LineElement,
-    Title,
-    Tooltip,
-    Legend,
     TimeScale
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
@@ -22,9 +19,6 @@ ChartJS.register(
     LinearScale,
     PointElement,
     LineElement,
-    Title,
-    Tooltip,
-    Legend,
     TimeScale
 );
 
@@ -40,7 +34,7 @@ const Container = styled.div`
 `;
 
 const ModelList = styled.div`
-    width: 300px;
+    width: ${props => props.isExtended ? 'calc(100% - 40px)' : '300px'};
     background-color: rgba(44, 62, 80, 0.7);
     padding: 20px;
     flex-shrink: 0;
@@ -56,6 +50,7 @@ const ModelList = styled.div`
     backdrop-filter: blur(8px);
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
+    transition: width 0.3s ease-out;
 `;
 
 const TitleContainer = styled.div`
@@ -98,7 +93,8 @@ const FilterButton = styled.button`
 const FilterMenu = styled.div`
     position: absolute;
     top: 20px;
-    right: -150px;
+    right: ${props => props.isExtended ? '130px' : '-150px'};
+    left: ${props => props.isExtended ? 'auto' : 'auto'};
     background: rgba(44, 62, 80, 0.95);
     border-radius: 4px;
     padding: 15px;
@@ -112,10 +108,10 @@ const FilterMenu = styled.div`
     
     /* Animation properties */
     opacity: ${props => props.show ? 1 : 0};
-    transform: translateX(${props => props.show ? '0' : '-10px'});
+    transform: translateX(${props => props.show ? '0' : (props.isExtended ? '-10px' : '10px')});
     visibility: ${props => props.show ? 'visible' : 'hidden'};
     transition: all 0.3s ease-in-out;
-    transform-origin: top right;
+    transform-origin: ${props => props.isExtended ? 'left' : 'right'};
     pointer-events: ${props => props.show ? 'auto' : 'none'};
 `;
 
@@ -177,6 +173,10 @@ const ModelItem = styled.div`
 const ModelListContent = styled.div`
     overflow-y: auto;
     flex-grow: 1;
+    display: grid;
+    grid-template-columns: ${props => props.isExtended ? 'repeat(auto-fill, minmax(250px, 1fr))' : '1fr'};
+    gap: 10px;
+    padding-right: 10px;
     
     /* Hide scrollbar */
     &::-webkit-scrollbar {
@@ -233,6 +233,20 @@ const ModalContent = styled.div`
     width: 70%;
     max-height: 95vh;
     overflow-y: auto;
+    
+    /* Animation */
+    animation: modalPop 0.3s ease-out;
+    
+    @keyframes modalPop {
+        0% {
+            opacity: 0;
+            transform: scale(0.7);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
 `;
 
 const CloseButton = styled.button`
@@ -315,6 +329,32 @@ const Tab = styled.button`
     }
 `;
 
+const ExtendButton = styled.button`
+    position: absolute;
+    right: 0px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(44, 62, 80, 0);
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    padding: 8px 4px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background-color 0.2s;
+
+    &:hover {
+        background: rgba(44, 62, 80, 0.9);
+    }
+
+    /* Arrow icon */
+    &::before {
+        content: ${props => props.isExtended ? '"◀"' : '"▶"'};
+        display: block;
+        font-size: 12px;
+    }
+`;
+
 const RightSide = () => {
     const [models, setModels] = useState([]);
     const [selectedModel, setSelectedModel] = useState(null);
@@ -339,6 +379,10 @@ const RightSide = () => {
         ignoreOutliers: true
     });
     const [activeTab, setActiveTab] = useState('train');
+    const [trainMetrics, setTrainMetrics] = useState(null);
+    const [validationMetrics, setValidationMetrics] = useState(null);
+    const [isExtended, setIsExtended] = useState(false);
+    const selectedModelRef = useRef(null);
 
     useEffect(() => {
         const fetchModels = async () => {
@@ -364,11 +408,17 @@ const RightSide = () => {
             setSelectedModel(model);
             setModalOpen(true);
             
-            // Get TensorBoard metrics
-            const tbResponse = await axios.get(`/api/models/${model}/tensorboard/train`);
-            if (tbResponse.data.success) {
-                setMetrics(tbResponse.data.metrics);
-                console.log("TensorBoard metrics:", tbResponse.data.metrics);
+            // Get TensorBoard metrics for both train and validation
+            const trainResponse = await axios.get(`/api/models/${model}/tensorboard/train`);
+            if (trainResponse.data.success) {
+                setTrainMetrics(trainResponse.data.metrics);
+                console.log("Train metrics:", trainResponse.data.metrics);
+            }
+
+            const validationResponse = await axios.get(`/api/models/${model}/tensorboard/validation`);
+            if (validationResponse.data.success) {
+                setValidationMetrics(validationResponse.data.metrics);
+                console.log("Validation metrics:", validationResponse.data.metrics);
             }
         } catch (error) {
             console.error('Error fetching model details:', error);
@@ -386,6 +436,15 @@ const RightSide = () => {
         } else {
             setSelectedModel(model);
             setSelectedDimension(modelDimension);
+            setIsExtended(false);
+            
+            // Wait for the extension to close before scrolling
+            setTimeout(() => {
+                selectedModelRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 300); // Match the transition duration
         }
     };
 
@@ -503,10 +562,13 @@ const RightSide = () => {
     const formatMetricsData = (metricsData) => {
         if (!metricsData) return null;
 
-        const datasets = Object.entries(metricsData).map(([metricName, values], index) => {
-            // Add raw data as a background line
-            const rawData = {
-                label: 'Raw',  // Simplified label
+        // Ensure we're working with an array
+        const values = Array.isArray(metricsData) ? metricsData : [];
+
+        const datasets = [
+            // Raw data as background line
+            {
+                label: 'Raw',
                 data: values.map(v => ({
                     x: v.step,
                     y: v.value
@@ -517,33 +579,39 @@ const RightSide = () => {
                 borderWidth: 1,
                 order: 2,
                 hidden: false
-            };
-
-            // Smoothed data as the main line
-            const smoothedData = smoothData(values, chartSettings.smoothing);
-            const smoothedLine = {
-                label: 'Smoothed', 
-                data: smoothedData.map(v => ({
+            },
+            // Smoothed data as main line
+            {
+                label: 'Smoothed',
+                data: smoothData(values, chartSettings.smoothing).map(v => ({
                     x: v.step,
                     y: v.value
                 })),
-                borderColor: `hsl(${index * 137.5}, 70%, 50%)`,
-                backgroundColor: `hsl(${index * 137.5}, 70%, 50%)`,
+                borderColor: 'rgba(255, 0, 0, 0.8)',
+                backgroundColor: 'rgba(255, 0, 0, 0.8)',
                 tension: 0.1,
                 pointRadius: 0,
                 borderWidth: 2,
                 order: 1
-            };
-
-            return [rawData, smoothedLine];
-        }).flat();
+            }
+        ];
 
         return { datasets };
     };
 
+    // Helper function to get current metrics based on active tab
+    const getCurrentMetrics = () => {
+        if (activeTab === 'train') {
+            return trainMetrics?.epoch_loss || [];
+        } else {
+            // For validation tab, return the epoch_loss by default
+            return validationMetrics?.epoch_loss || [];
+        }
+    };
+
     return (
         <Container>
-            <ModelList>
+            <ModelList isExtended={isExtended}>
                 <TitleContainer>
                     <StyledTypography variant="h6">
                         Select Model
@@ -557,7 +625,7 @@ const RightSide = () => {
                 </TitleContainer>
 
                 
-                <FilterMenu show={showFilters}>
+                <FilterMenu show={showFilters} isExtended={isExtended}>
                     <FilterSection>
                         <label>Dimension</label>
                         <select 
@@ -632,7 +700,7 @@ const RightSide = () => {
                     </FilterSection>
                 </FilterMenu>
 
-                <ModelListContent>
+                <ModelListContent isExtended={isExtended}>
                     {loading ? (
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                             <Audio height="80" width="80" color="white" ariaLabel="loading" />
@@ -642,37 +710,36 @@ const RightSide = () => {
                             {error}
                         </div>
                     ) : filteredModels.length > 0 ? (
-                        <List>
-                            {filteredModels.map((model, index) => {
-                                const dimensionMatch = model.match(/dim(\d+)/);
-                                const modelDimension = dimensionMatch ? dimensionMatch[1] : null;
-                                const isDisabled = selectedDimension !== null && modelDimension !== selectedDimension;
-                                
-                                return (
-                                    <ModelItem 
-                                        key={index} 
-                                        onClick={() => handleModelClick(model)}
-                                        style={{ 
-                                            cursor: 'pointer',
-                                            opacity: isDisabled ? 0.5 : 1 
+                        filteredModels.map((model, index) => {
+                            const dimensionMatch = model.match(/dim(\d+)/);
+                            const modelDimension = dimensionMatch ? dimensionMatch[1] : null;
+                            const isDisabled = selectedDimension !== null && modelDimension !== selectedDimension;
+                            
+                            return (
+                                <ModelItem 
+                                    key={index} 
+                                    ref={selectedModel === model ? selectedModelRef : null}
+                                    onClick={() => handleModelClick(model)}
+                                    style={{ 
+                                        cursor: 'pointer',
+                                        opacity: isDisabled ? 0.5 : 1 
+                                    }}
+                                >
+                                    <input
+                                        type="radio"
+                                        checked={selectedModel === model}
+                                        onChange={(e) => {
+                                            e.stopPropagation();
+                                            handleCheckboxChange(model);
                                         }}
-                                    >
-                                        <input
-                                            type="radio"
-                                            checked={selectedModel === model}
-                                            onChange={(e) => {
-                                                e.stopPropagation();
-                                                handleCheckboxChange(model);
-                                            }}
-                                            onClick={(e) => e.stopPropagation()}
-                                            disabled={isDisabled}
-                                            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
-                                        />
-                                        {model}
-                                    </ModelItem>
-                                );
-                            })}
-                        </List>
+                                        onClick={(e) => e.stopPropagation()}
+                                        disabled={isDisabled}
+                                        style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+                                    />
+                                    {model}
+                                </ModelItem>
+                            );
+                        })
                     ) : (
                         <div style={{ color: 'white', textAlign: 'center', padding: '20px' }}>
                             No models found.
@@ -691,11 +758,22 @@ const RightSide = () => {
                         Load Model
                     </Button>
                 </ButtonContainer>
+
+                <ExtendButton 
+                    onClick={() => setIsExtended(!isExtended)}
+                    isExtended={isExtended}
+                />
             </ModelList>
 
             <StyledModal
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
+                BackdropProps={{
+                    timeout: 300
+                }}
+                style={{
+                    backdropFilter: 'blur(5px)'
+                }}
             >
                 <ModalContent>
                     <CloseButton onClick={() => setModalOpen(false)}>×</CloseButton>
@@ -718,25 +796,25 @@ const RightSide = () => {
                         </Tab>
                     </TabContainer>
 
-                    {metrics && (
+                    {(activeTab === 'train' ? trainMetrics : validationMetrics) && (
                         <ChartContainer>
-                                <ChartControl>
-                                    <label>Smoothing</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="0.99"
-                                        step="0.01"
-                                        value={chartSettings.smoothing}
-                                        onChange={(e) => setChartSettings(prev => ({
-                                            ...prev,
-                                            smoothing: parseFloat(e.target.value)
-                                        }))}
-                                    />
-                                </ChartControl>
+                            <ChartControl>
+                                <label>Smoothing</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="0.99"
+                                    step="0.01"
+                                    value={chartSettings.smoothing}
+                                    onChange={(e) => setChartSettings(prev => ({
+                                        ...prev,
+                                        smoothing: parseFloat(e.target.value)
+                                    }))}
+                                />
+                            </ChartControl>
                             <div style={{ height: 'calc(100% - 60px)' }}>
                                 <Line
-                                    data={formatMetricsData(metrics)}
+                                    data={formatMetricsData(getCurrentMetrics())}
                                     options={{
                                         responsive: true,
                                         maintainAspectRatio: true,
@@ -777,7 +855,7 @@ const RightSide = () => {
                                         plugins: {
                                             title: {
                                                 display: true,
-                                                text: 'Training Epoch Loss',
+                                                text: `${activeTab === 'train' ? 'Training' : 'Validation'} Epoch Loss`,
                                                 font: {
                                                     size: 16,
                                                     weight: 'normal'

@@ -540,12 +540,7 @@ const LeftSide = ({ onTrainingStart }) => {
                         >
                             <option value="all">All Dimensions</option>
                             <option value="2">2D</option>
-                            <option value="3">3D</option>
                             <option value="4">4D</option>
-                            <option value="5">5D</option>
-                            <option value="6">6D</option>
-                            <option value="7">7D</option>
-                            <option value="8">8D</option>
                             <option value="9">9D</option>
                             <option value="custom">Custom...</option>
                         </select>
