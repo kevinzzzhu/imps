@@ -555,7 +555,7 @@ def get_model_validation_tensorboard(model):
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')
 @click.option('--port', default=DEFAULT_PORT, help='The port to bind to.')
 @click.option('--debug', is_flag=True, help='Run in debug mode.')
-@click.option('--dev', is_flag=True, help='Run in development mode with React')
+@click.option('--dev', is_flag=True, help='Run in development mode with React (Hot Reload)')
 def webui(host, port, debug, dev):
     print("Starting IMPSY web interface...")
     

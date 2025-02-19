@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, List, Modal, Button } from '@mui/material';
+import { Typography, Modal, Button } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
 import {
     Chart as ChartJS,
@@ -9,6 +9,9 @@ import {
     LinearScale,
     PointElement,
     LineElement,
+    Title,
+    Tooltip,
+    Legend,
     TimeScale
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
@@ -19,7 +22,10 @@ ChartJS.register(
     LinearScale,
     PointElement,
     LineElement,
-    TimeScale
+    TimeScale,
+    Title,
+    Tooltip,
+    Legend
 );
 
 const Container = styled.div`
@@ -371,7 +377,6 @@ const RightSide = () => {
         customEndDate: '',
         customDimension: ''
     });
-    const [metrics, setMetrics] = useState(null);
     const [chartSettings, setChartSettings] = useState({
         smoothing: 0.6,
         xAxis: 'step',
@@ -607,6 +612,20 @@ const RightSide = () => {
             // For validation tab, return the epoch_loss by default
             return validationMetrics?.epoch_loss || [];
         }
+    };
+
+    // Add this helper function near the top with other functions
+    const getDateFromFilename = (filename) => {
+        const match = filename.match(/^(\d{8})-(\d{2}_\d{2}_\d{2})/);
+        if (match) {
+            const [_, date, time] = match;
+            const year = date.slice(0, 4);
+            const month = date.slice(4, 6);
+            const day = date.slice(6, 8);
+            const formattedTime = time.replace(/_/g, ':');
+            return new Date(`${year}-${month}-${day}T${formattedTime}`);
+        }
+        return new Date();
     };
 
     return (
@@ -869,13 +888,13 @@ const RightSide = () => {
                                                 labels: {
                                                     usePointStyle: true,
                                                     padding: 15,
-                                                    filter: function(legendItem, data) {
-                                                        // Only show the smoothed line in the legend
+                                                    filter: function(legendItem) {
                                                         return !legendItem.text.includes('(raw)');
                                                     }
                                                 }
                                             },
                                             tooltip: {
+                                                enabled: true,
                                                 mode: 'index',
                                                 intersect: false,
                                                 backgroundColor: 'rgba(0,0,0,0.8)',
@@ -887,12 +906,25 @@ const RightSide = () => {
                                                     size: 12
                                                 },
                                                 callbacks: {
+                                                    title: function(tooltipItems) {
+                                                        const item = tooltipItems[0];
+                                                        const modelDate = getDateFromFilename(selectedModel);
+                                                        const formattedDate = modelDate.toLocaleString('en-US', {
+                                                            month: '2-digit',
+                                                            day: '2-digit',
+                                                            year: '2-digit',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                            hour12: false
+                                                        });
+                                                        return [
+                                                            `Step: ${item.parsed.x}`,
+                                                            `Time: ${formattedDate}`,
+                                                            `Relative: ${(item.parsed.x * 0.1).toFixed(3)} sec`
+                                                        ];
+                                                    },
                                                     label: function(context) {
-                                                        // Only show smoothed values in tooltip
-                                                        if (!context.dataset.label.includes('(raw)')) {
-                                                            return `${context.dataset.label}: ${context.parsed.y.toFixed(4)}`;
-                                                        }
-                                                        return null;
+                                                        return `Value: ${context.parsed.y.toFixed(3)}`;
                                                     }
                                                 }
                                             }
