@@ -421,7 +421,7 @@ def get_model_training_tensorboard(model):
         # Get the model's tensorboard directory
         model_dir = Path(MODEL_DIR) / base_model_name / 'train'
 
-        print(f"Looking for TensorBoard logs in: {model_dir}")    
+        # print(f"Looking for TensorBoard logs in: {model_dir}")    
 
         if not model_dir.exists():
             print(f"Directory not found: {model_dir}")
@@ -436,7 +436,7 @@ def get_model_training_tensorboard(model):
         # Load and combine data from all event files
         metrics = {'epoch_loss': []}
         for event_file in sorted(event_files):
-            print(f"Processing event file: {event_file}")
+            # print(f"Processing event file: {event_file}")
             ea = event_accumulator.EventAccumulator(
                 str(event_file),
                 size_guidance={  # Increase size limits
@@ -448,12 +448,12 @@ def get_model_training_tensorboard(model):
             
             # Get available tags
             tags = ea.Tags()
-            print(f"Available tags in {event_file}: {tags}")
+            # print(f"Available tags in {event_file}: {tags}")
             
             # Process tensor events
             if 'epoch_loss' in tags.get('tensors', []):
                 events = ea.Tensors('epoch_loss')
-                print(f"Found {len(events)} events in {event_file}")
+                # print(f"Found {len(events)} events in {event_file}")
                 
                 for event in events:
                     metrics['epoch_loss'].append({
@@ -465,9 +465,9 @@ def get_model_training_tensorboard(model):
         # Sort by step to ensure proper ordering
         metrics['epoch_loss'].sort(key=lambda x: x['step'])
         
-        print(f"Total events collected: {len(metrics['epoch_loss'])}")
-        print(f"Step range: {metrics['epoch_loss'][0]['step']} to {metrics['epoch_loss'][-1]['step']}")
-        print(f"Final metrics: {metrics}")
+        # print(f"Total events collected: {len(metrics['epoch_loss'])}")
+        # print(f"Step range: {metrics['epoch_loss'][0]['step']} to {metrics['epoch_loss'][-1]['step']}")
+        # print(f"Final metrics: {metrics}")
 
         return jsonify({
             'metrics': metrics,
@@ -487,7 +487,7 @@ def get_model_validation_tensorboard(model):
         # Get the model's tensorboard directory
         model_dir = Path(MODEL_DIR) / base_model_name / 'validation'
 
-        print(f"Looking for TensorBoard logs in: {model_dir}")    
+        # print(f"Looking for TensorBoard logs in: {model_dir}")    
 
         if not model_dir.exists():
             print(f"Directory not found: {model_dir}")
@@ -506,7 +506,7 @@ def get_model_validation_tensorboard(model):
         }
         
         for event_file in sorted(event_files):
-            print(f"Processing event file: {event_file}")
+            # print(f"Processing event file: {event_file}")
             ea = event_accumulator.EventAccumulator(
                 str(event_file),
                 size_guidance={  # Increase size limits
@@ -518,13 +518,13 @@ def get_model_validation_tensorboard(model):
             
             # Get available tags
             tags = ea.Tags()
-            print(f"Available tags in {event_file}: {tags}")
+            # print(f"Available tags in {event_file}: {tags}")
             
             # Process tensor events for both metrics
             for metric in ['epoch_loss', 'evaluation_loss_vs_iterations']:
                 if metric in tags.get('tensors', []):
                     events = ea.Tensors(metric)
-                    print(f"Found {len(events)} events for {metric} in {event_file}")
+                    # print(f"Found {len(events)} events for {metric} in {event_file}")
                     
                     for event in events:
                         metrics[metric].append({
@@ -536,11 +536,11 @@ def get_model_validation_tensorboard(model):
         # Sort by step to ensure proper ordering
         for metric in metrics:
             metrics[metric].sort(key=lambda x: x['step'])
-            if metrics[metric]:
-                print(f"{metric} - Total events: {len(metrics[metric])}")
-                print(f"{metric} - Step range: {metrics[metric][0]['step']} to {metrics[metric][-1]['step']}")
+            # if metrics[metric]:
+            #     print(f"{metric} - Total events: {len(metrics[metric])}")
+            #     print(f"{metric} - Step range: {metrics[metric][0]['step']} to {metrics[metric][-1]['step']}")
 
-        print(f"Final metrics: {metrics}")
+        # print(f"Final metrics: {metrics}")
 
         return jsonify({
             'metrics': metrics,

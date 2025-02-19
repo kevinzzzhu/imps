@@ -235,10 +235,11 @@ const ModalContent = styled.div`
     background-color: #ffffff;
     padding: 20px;
     border-radius: 8px;
-    max-width: 1250px;
-    width: 70%;
+    width: 80vw;
+    max-width: 1400px;
     max-height: 95vh;
     overflow-y: auto;
+    margin: 20px auto;
     
     /* Animation */
     animation: modalPop 0.3s ease-out;
@@ -274,10 +275,20 @@ const ChartContainer = styled.div`
     background: white;
     padding: 16px;
     border-radius: 8px;
-    margin-bottom: 20px;
-    max-width: 1200px;
+    margin: 20px auto;
+    max-width: 90%;
     width: 100%;
     height: 500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    /* Ensure chart takes full width */
+    canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
 `;
 
 const ChartControls = styled.div`
@@ -388,6 +399,7 @@ const RightSide = () => {
     const [validationMetrics, setValidationMetrics] = useState(null);
     const [isExtended, setIsExtended] = useState(false);
     const selectedModelRef = useRef(null);
+    const chartRef = useRef(null);
 
     useEffect(() => {
         const fetchModels = async () => {
@@ -407,6 +419,25 @@ const RightSide = () => {
 
         fetchModels();
     }, []);
+
+    useEffect(() => {
+        if (!modalOpen) {
+            setTrainMetrics(null);
+            setValidationMetrics(null);
+        }
+    }, [modalOpen]);
+
+    useEffect(() => {
+        if (chartRef.current && (trainMetrics || validationMetrics)) {
+            const currentMetrics = activeTab === 'train' ? trainMetrics : validationMetrics;
+            const chartData = formatMetricsData(currentMetrics?.epoch_loss || []);
+            
+            if (chartData && chartData.datasets) {
+                chartRef.current.data = chartData;
+                chartRef.current.update('none');
+            }
+        }
+    }, [trainMetrics, validationMetrics, activeTab, chartSettings.smoothing]);
 
     const handleModelClick = async (model) => {
         try {
@@ -565,43 +596,39 @@ const RightSide = () => {
     };
 
     const formatMetricsData = (metricsData) => {
-        if (!metricsData) return null;
+        if (!metricsData || metricsData.length === 0) return null;
 
-        // Ensure we're working with an array
         const values = Array.isArray(metricsData) ? metricsData : [];
-
-        const datasets = [
-            // Raw data as background line
-            {
-                label: 'Raw',
-                data: values.map(v => ({
-                    x: v.step,
-                    y: v.value
-                })),
-                borderColor: 'rgba(200, 200, 200, 1)',
-                tension: 0.1,
-                pointRadius: 0,
-                borderWidth: 1,
-                order: 2,
-                hidden: false
-            },
-            // Smoothed data as main line
-            {
-                label: 'Smoothed',
-                data: smoothData(values, chartSettings.smoothing).map(v => ({
-                    x: v.step,
-                    y: v.value
-                })),
-                borderColor: 'rgba(255, 0, 0, 0.8)',
-                backgroundColor: 'rgba(255, 0, 0, 0.8)',
-                tension: 0.1,
-                pointRadius: 0,
-                borderWidth: 2,
-                order: 1
-            }
-        ];
-
-        return { datasets };
+        
+        return {
+            datasets: [
+                {
+                    label: 'Raw',
+                    data: values.map(v => ({
+                        x: v.step,
+                        y: v.value
+                    })),
+                    borderColor: 'rgba(200, 200, 200, 1)',
+                    tension: 0.1,
+                    pointRadius: 0,
+                    borderWidth: 1,
+                    order: 2
+                },
+                {
+                    label: 'Smoothed',
+                    data: smoothData(values, chartSettings.smoothing).map(v => ({
+                        x: v.step,
+                        y: v.value
+                    })),
+                    borderColor: 'rgba(255, 0, 0, 0.8)',
+                    backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                    tension: 0.1,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                    order: 1
+                }
+            ]
+        };
     };
 
     // Helper function to get current metrics based on active tab
@@ -612,20 +639,6 @@ const RightSide = () => {
             // For validation tab, return the epoch_loss by default
             return validationMetrics?.epoch_loss || [];
         }
-    };
-
-    // Add this helper function near the top with other functions
-    const getDateFromFilename = (filename) => {
-        const match = filename.match(/^(\d{8})-(\d{2}_\d{2}_\d{2})/);
-        if (match) {
-            const [_, date, time] = match;
-            const year = date.slice(0, 4);
-            const month = date.slice(4, 6);
-            const day = date.slice(6, 8);
-            const formattedTime = time.replace(/_/g, ':');
-            return new Date(`${year}-${month}-${day}T${formattedTime}`);
-        }
-        return new Date();
     };
 
     return (
@@ -833,19 +846,13 @@ const RightSide = () => {
                             </ChartControl>
                             <div style={{ height: 'calc(100% - 60px)' }}>
                                 <Line
+                                    ref={chartRef}
                                     data={formatMetricsData(getCurrentMetrics())}
                                     options={{
                                         responsive: true,
-                                        maintainAspectRatio: true,
-                                        aspectRatio: 1.8,
-                                        animation: false,
-                                        spanGaps: true,
-                                        normalized: true,
-                                        parsing: false,
-                                        interaction: {
-                                            mode: 'nearest',
-                                            axis: 'x',
-                                            intersect: false
+                                        maintainAspectRatio: false,
+                                        animation: {
+                                            duration: 0
                                         },
                                         scales: {
                                             x: {
@@ -856,6 +863,7 @@ const RightSide = () => {
                                                     text: chartSettings.xAxis.charAt(0).toUpperCase() + chartSettings.xAxis.slice(1)
                                                 },
                                                 grid: {
+                                                    display: true,
                                                     color: '#e0e0e0'
                                                 }
                                             },
@@ -867,66 +875,17 @@ const RightSide = () => {
                                                     text: 'Value'
                                                 },
                                                 grid: {
+                                                    display: true,
                                                     color: '#e0e0e0'
                                                 }
                                             }
                                         },
-                                        plugins: {
-                                            title: {
-                                                display: true,
-                                                text: `${activeTab === 'train' ? 'Training' : 'Validation'} Epoch Loss`,
-                                                font: {
-                                                    size: 16,
-                                                    weight: 'normal'
-                                                },
-                                                padding: {
-                                                    bottom: 20
-                                                }
-                                            },
-                                            legend: {
-                                                position: 'top',
-                                                labels: {
-                                                    usePointStyle: true,
-                                                    padding: 15,
-                                                    filter: function(legendItem) {
-                                                        return !legendItem.text.includes('(raw)');
-                                                    }
-                                                }
-                                            },
-                                            tooltip: {
-                                                enabled: true,
-                                                mode: 'index',
-                                                intersect: false,
-                                                backgroundColor: 'rgba(0,0,0,0.8)',
-                                                padding: 12,
-                                                titleFont: {
-                                                    size: 13
-                                                },
-                                                bodyFont: {
-                                                    size: 12
-                                                },
-                                                callbacks: {
-                                                    title: function(tooltipItems) {
-                                                        const item = tooltipItems[0];
-                                                        const modelDate = getDateFromFilename(selectedModel);
-                                                        const formattedDate = modelDate.toLocaleString('en-US', {
-                                                            month: '2-digit',
-                                                            day: '2-digit',
-                                                            year: '2-digit',
-                                                            hour: '2-digit',
-                                                            minute: '2-digit',
-                                                            hour12: false
-                                                        });
-                                                        return [
-                                                            `Step: ${item.parsed.x}`,
-                                                            `Time: ${formattedDate}`,
-                                                            `Relative: ${(item.parsed.x * 0.1).toFixed(3)} sec`
-                                                        ];
-                                                    },
-                                                    label: function(context) {
-                                                        return `Value: ${context.parsed.y.toFixed(3)}`;
-                                                    }
-                                                }
+                                        layout: {
+                                            padding: {
+                                                left: 10,
+                                                right: 30,
+                                                top: 20,
+                                                bottom: 10
                                             }
                                         }
                                     }}
