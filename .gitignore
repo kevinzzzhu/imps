@@ -164,6 +164,7 @@ output-logs
 models
 logs
 datasets
+projects
 
 *.hdf5
 *.no

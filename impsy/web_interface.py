@@ -28,6 +28,8 @@ LOGS_DIR = PROJECT_ROOT / 'logs'
 MODEL_DIR = PROJECT_ROOT / 'models'
 DATASET_DIR = PROJECT_ROOT / 'datasets'
 CONFIGS_DIR = PROJECT_ROOT / 'configs'
+PROJECTS_DIR = PROJECT_ROOT / 'projects'
+
 app.config['LOG_FOLDER'] = LOGS_DIR
 CONFIG_FILE = 'config.toml'
 DEFAULT_HOST = '0.0.0.0'
@@ -612,6 +614,84 @@ def import_models():
         }), 200 if imported_files else 400
 
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/new-project', methods=['POST'])
+def new_project():
+    try:
+        data = request.json
+        project_name = secure_filename(data['projectName'])
+        config_content = data['configContent']
+
+        # Find available filename
+        base_path = os.path.join(PROJECTS_DIR, f"{project_name}.toml")
+        final_path = base_path
+        counter = 2
+        
+        while os.path.exists(final_path):
+            final_path = os.path.join(PROJECTS_DIR, f"{project_name}-{counter}.toml")
+            counter += 1
+
+        # Save project config
+        with open(final_path, 'w') as f:
+            f.write(config_content)
+
+        # Update global config
+        with open('config.toml', 'w') as f:
+            f.write(config_content)
+
+        return jsonify({
+            'success': True,
+            'configPath': final_path
+        })
+
+    except Exception as e:
+        print(f"Error saving project config: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Update the load-model route
+@app.route('/api/load-model', methods=['POST'])
+def load_model():
+    try:
+        data = request.json
+        project_name = data.get('projectName', '')
+
+        if not project_name:
+            return jsonify({'error': 'Project name is required'}), 400
+
+        # Find the project config file
+        project_file = None
+        project_path = Path(PROJECTS_DIR)
+        
+        # Check for exact match first
+        exact_match = project_path / f"{project_name}.toml"
+        if exact_match.exists():
+            project_file = exact_match
+        else:
+            # Look for numbered versions
+            for file in project_path.glob(f"{project_name}-*.toml"):
+                project_file = file
+                break
+
+        if not project_file:
+            return jsonify({'error': f'Project configuration not found for {project_name}'}), 404
+
+        # Read project config and update global config
+        try:
+            with open(project_file, 'r') as src, open('config.toml', 'w') as dst:
+                config_content = src.read()
+                dst.write(config_content)
+        except Exception as e:
+            return jsonify({'error': f'Error updating configuration: {str(e)}'}), 500
+
+        return jsonify({
+            'success': True,
+            'message': 'Model loaded successfully',
+            'configPath': str(project_file)
+        })
+
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @click.command()

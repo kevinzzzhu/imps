@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, Modal, Button, Box } from '@mui/material';
+import { Typography, Modal, Button, Box, TextField } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
 import {
     Chart as ChartJS,
@@ -15,6 +15,7 @@ import {
     TimeScale
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { useNavigate } from 'react-router-dom';
 
 // Register Chart.js components
 ChartJS.register(
@@ -391,7 +392,37 @@ const ExtendButton = styled.button`
     }
 `;
 
+const ConfigHeader = styled.div`
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    padding: 15px 15px 0;
+`;
+
+const ConfigTextArea = styled.textarea`
+    width: 100%;
+    height: 100%;
+    padding: 15px;
+    background-color: transparent;
+    color: white;
+    font-family: monospace;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    border: none;
+    border-radius: 4px;
+    
+    &:hover {
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+        border-color: rgba(52, 152, 219, 0.8);
+    }
+`;
+
 const RightSide = () => {
+    const navigate = useNavigate();
     const [models, setModels] = useState([]);
     const [selectedModel, setSelectedModel] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -420,6 +451,7 @@ const RightSide = () => {
     const selectedModelRef = useRef(null);
     const chartRef = useRef(null);
     const [configContent, setConfigContent] = useState('');
+    const [projectName, setProjectName] = useState('');
 
     useEffect(() => {
         const fetchModels = async () => {
@@ -461,6 +493,10 @@ const RightSide = () => {
 
     useEffect(() => {
         if (selectedModel) {
+            // Generate default project name from timestamp and model
+            const timestamp = new Date().toISOString().slice(0,19).replace(/[-:]/g, '').replace('T', '-');
+            const modelBaseName = selectedModel.replace(/\.(keras|h5|tflite)$/, '');
+            setProjectName(`${timestamp}-${modelBaseName}`);
             fetchConfig();
         }
     }, [selectedModel]);
@@ -515,15 +551,33 @@ const RightSide = () => {
             return;
         }
 
+        if (!projectName.trim()) {
+            alert('Please enter a project name');
+            return;
+        }
+
         try {
             setLoading(true);
-            const response = await axios.post('/api/load-model', {
-                model: selectedModel
+            
+            // Save config file to project folder
+            const saveConfigResponse = await axios.post('/api/new-project', {
+                projectName: projectName,
+                configContent: configContent
             });
-            alert('Model loaded successfully!');
+
+            // Load the model
+            const loadResponse = await axios.post('/api/load-model', {
+                projectName: projectName
+            });
+
+            alert('Project created and model loaded successfully!');
+            
+            // Use navigate instead of window.location
+            navigate('/project');
+            
         } catch (error) {
-            console.error('Error loading model:', error);
-            alert('Failed to load model: ' + error.response?.data?.error || error.message);
+            console.error('Error creating project:', error);
+            alert('Failed to create project: ' + error.response?.data?.error || error.message);
         } finally {
             setLoading(false);
         }
@@ -891,38 +945,43 @@ const RightSide = () => {
                 show={selectedModel !== null} 
                 isExtended={isExtended}
             >
-                {selectedModel && !isExtended && (
-                    <ModelContent>
-                        <Typography variant="h6" style={{ color: 'white', marginBottom: '20px' }}>
-                            Configuration File
-                        </Typography>
-                        
-                        <Box sx={{ 
-                            width: '100%', 
-                            height: 'calc(100% - 60px)',
-                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                            borderRadius: '4px',
-                            overflow: 'hidden'
-                        }}>
-                            <textarea
-                                value={configContent}
-                                onChange={(e) => setConfigContent(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    padding: '15px',
-                                    backgroundColor: 'transparent',
-                                    border: 'none',
+                <ModelContent>
+                    <ConfigHeader>
+                        <TextField
+                            size="small"
+                            label="Project Name"
+                            value={projectName}
+                            onChange={(e) => setProjectName(e.target.value)}
+                            sx={{
+                                width: '300px',
+                                '& .MuiInputBase-input': {
                                     color: 'white',
-                                    fontFamily: 'monospace',
-                                    fontSize: '14px',
-                                    resize: 'none',
-                                    outline: 'none'
-                                }}
-                            />
-                        </Box>
-                    </ModelContent>
-                )}
+                                },
+                                '& .MuiInputLabel-root': {
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                },
+                                '& .MuiOutlinedInput-root': {
+                                    '& fieldset': {
+                                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                                    },
+                                    '&:hover fieldset': {
+                                        borderColor: 'rgba(255, 255, 255, 0.5)',
+                                    },
+                                },
+                            }}
+                        />
+                    </ConfigHeader>
+                    <Box sx={{
+                        flex: 1,
+                        padding: '0 15px 15px',
+                        overflow: 'hidden'
+                    }}>
+                        <ConfigTextArea
+                            value={configContent}
+                            onChange={(e) => setConfigContent(e.target.value)}
+                        />
+                    </Box>
+                </ModelContent>
             </MainContent>
 
             <StyledModal
