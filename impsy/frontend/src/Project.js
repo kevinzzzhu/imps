@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
 import { Typography, List, ListItem, Box, Modal, Paper, Button } from '@mui/material';
@@ -11,7 +11,7 @@ import SplomGraph from './components/logVis/SplomGraph';
 import ParallelGraph from './components/logVis/ParallelGraph';
 import ViolinGraph from './components/logVis/ViolinGraph';
 import OscillationGraph from './components/logVis/OscillationGraph';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const Container = styled.div`
     display: flex;
@@ -54,21 +54,29 @@ const ButtonContainer = styled.div`
     margin-top: 10px;
 
     button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    background-color: #007bff;
-    color: white;
-    cursor: pointer;
-    transition: background-color 0.2s, opacity 0.2s;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
 
         &:hover:not(:disabled) {
             background-color: #0056b3;
         }
 
         &:disabled {
-                cursor: not-allowed;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        &.running {
+            background-color: #dc3545; 
+            &:hover {
+                background-color: #c82333; 
             }
+        }
     }
 `;
 
@@ -78,6 +86,96 @@ const MainContent = styled.div`
     display: flex;
     flex-direction: column;
     align-items: center;
+    position: relative; 
+`;
+
+const StatusDot = styled.div`
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: ${props => props.isRunning ? '#2ecc71' : '#e74c3c'};
+    position: relative;
+    margin-right: 12px;
+    
+    &::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background-color: ${props => props.isRunning ? '#2ecc71' : '#e74c3c'};
+        opacity: 0.4;
+        animation: ${props => props.isRunning ? 'pulse 2s infinite' : 'none'};
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 0.4;
+        }
+        50% {
+            transform: scale(2);
+            opacity: 0;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 0.4;
+        }
+    }
+`;
+
+const RunButtonContainer = styled.div`
+    position: absolute;
+    top: 20px;
+    right: 10px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-1px);
+    }
+
+    button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        background-color: #808080;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+
+        &:hover:not(:disabled) {
+            background-color: #666666;
+            transform: translateY(-1px);
+        }
+
+        &:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        &:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        &.running {
+            background-color: #808080;
+            &:hover {
+                background-color: #666666;
+            }
+        }
+    }
 `;
 
 const StyledModal = styled(Modal)`
@@ -187,6 +285,8 @@ function Project() {
     const [logData, setLogData] = useState(null);
     const [selectedLogs, setSelectedLogs] = useState([]);
     const [selectedView, setSelectedView] = useState('basic');
+    const [isModelRunning, setIsModelRunning] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchLogFiles();
@@ -366,6 +466,59 @@ function Project() {
         }
     };
 
+    // Add handler for run button
+    const handleRunClick = async () => {
+        if (isModelRunning) {
+            // Stop the model
+            try {
+                setLoading(true);
+                await stopModel();
+            } catch (error) {
+                console.error('Error stopping model:', error);
+                alert('Failed to stop model: ' + error.response?.data?.error || error.message);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Start the model
+            try {
+                setLoading(true);
+                const response = await axios.post('/api/run-model');
+                
+                if (response.data.success) {
+                    setIsModelRunning(true);
+                } else {
+                    alert('Failed to start model: ' + response.data.error);
+                }
+            } catch (error) {
+                console.error('Error starting model:', error);
+                alert('Failed to start model: ' + error.response?.data?.error || error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    // Add cleanup function
+    const stopModel = useCallback(async () => {
+        if (isModelRunning) {
+            try {
+                await axios.post('/api/stop-model');
+                setIsModelRunning(false);
+            } catch (error) {
+                console.error('Error stopping model:', error);
+            }
+        }
+    }, [isModelRunning]);
+
+    // Add cleanup effect
+    useEffect(() => {
+        // Cleanup function when component unmounts
+        return () => {
+            stopModel();
+        };
+    }, [stopModel]);
+
     return (
         <Container className="project-container">
             <LogList>
@@ -405,14 +558,37 @@ function Project() {
                         onClick={handleTrain}
                         disabled={selectedLogs.length === 0}
                         style={{
-                            opacity: selectedLogs.length === 0 ? 0.5 : 1,
-                            cursor: selectedLogs.length === 0 ? 'not-allowed' : 'pointer'
+                            opacity: selectedLogs.length === 0 ? 0.5 : 1
                         }}
                     >
                         Train
                     </button>
                 </ButtonContainer>
             </LogList>
+
+            <MainContent>
+                <Typography variant="h4" gutterBottom>IMPSY Visualization</Typography>
+                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-evenly' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <InputVis data={inputData}/>
+                        <Typography variant="subtitle1">Input</Typography>
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <OutputVis data={outputData}/>
+                        <Typography variant="subtitle1">Output</Typography>
+                    </div>
+                </div>
+                <RunButtonContainer>
+                    <StatusDot isRunning={isModelRunning} />
+                    <button 
+                        onClick={handleRunClick}
+                        disabled={loading}
+                        className={isModelRunning ? 'running' : ''}
+                    >
+                        {isModelRunning ? 'Stop' : 'Run Model'}
+                    </button>
+                </RunButtonContainer>
+            </MainContent>
 
             {/* Add Modal */}
             <StyledModal
@@ -529,20 +705,6 @@ function Project() {
                     </Box>
                 </ModalContent>
             </StyledModal>
-
-            <MainContent>
-                <Typography variant="h4" gutterBottom>IMPSY Visualization</Typography>
-                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-evenly' }}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <InputVis data={inputData}/>
-                        <Typography variant="subtitle1">Input</Typography>
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <OutputVis data={outputData}/>
-                        <Typography variant="subtitle1">Output</Typography>
-                    </div>
-                </div>
-            </MainContent>
         </Container>
     );
 }

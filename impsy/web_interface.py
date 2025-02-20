@@ -42,15 +42,9 @@ ROUTE_NAMES = {
     'datasets': 'Dataset Files',
 }
 
-# Add a global queue for training messages
 training_queue = queue.Queue()
-
-# Add a global variable to track the training process
 training_process = None
-
-# Add these global variables at the top
-tensorboard_thread = None
-tensorboard_port = None
+model_process = None
 
 def get_hardware_info():
     try:
@@ -400,7 +394,7 @@ def stream():
     def generate():
         while True:
             try:
-                message = training_queue.get(timeout=30)  # Add timeout
+                message = training_queue.get(timeout=30)
                 if message == "DONE":
                     logging.info("Training stream completed")
                     break
@@ -722,6 +716,69 @@ def webui(host, port, debug, dev):
     
     # Run Flask app
     app.run(host=host, port=port, debug=debug)
+
+# Add this new route to handle running the model
+@app.route('/api/run-model', methods=['POST'])
+def run_model():
+    try:
+        global model_process
+        # Start the model in a separate process
+        model_process = subprocess.Popen(
+            ["poetry", "run", "./start_impsy.py", "run"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True
+        )
+        
+        # Check if the process started successfully
+        if model_process.poll() is None:  # Process is running
+            return jsonify({
+                "success": True,
+                "message": "Model started successfully",
+                "pid": model_process.pid
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Failed to start model"
+            }), 500
+            
+    except Exception as e:
+        print(f"Error starting model: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/stop-model', methods=['POST'])
+def stop_model():
+    try:
+        global model_process
+        if model_process is not None:
+            # Try to terminate the process gracefully
+            model_process.terminate()
+            try:
+                # Wait for up to 5 seconds for the process to terminate
+                model_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # If process doesn't terminate within 5 seconds, kill it
+                model_process.kill()
+            
+            model_process = None
+            return jsonify({
+                "success": True,
+                "message": "Model stopped successfully"
+            })
+        return jsonify({
+            "success": True,
+            "message": "No model running"
+        })
+    except Exception as e:
+        print(f"Error stopping model: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 if __name__ == "__main__":
     webui()

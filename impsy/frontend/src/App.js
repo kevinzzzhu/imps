@@ -66,11 +66,11 @@ const PageContainer = styled.main`
 function App() {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  let closeTimeout = null;  // Declare a variable to hold the timeout, so it can be cleared if needed
+  let closeTimeout = null;
 
   const toggleMenu = () => {
     if (closeTimeout) {
-      clearTimeout(closeTimeout);  // Clear any existing timeout to prevent unwanted closure
+      clearTimeout(closeTimeout);
     }
     setMenuOpen(!isMenuOpen);
   };
