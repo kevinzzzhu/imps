@@ -4,19 +4,22 @@ import axios from 'axios';
 import { Typography, List, ListItem, Box, Modal, Paper, Button } from '@mui/material';
 import InputVis from './components/project/InputVis';
 import OutputVis from './components/project/OutputVis';
-import { Audio } from 'react-loader-spinner'; // loading animation
+import { Audio } from 'react-loader-spinner';
 import TimeSeriesGraph from './components/logVis/TimeSeriesGraph';
 import DelaunayGraph from './components/logVis/DelaunayGraph';
 import SplomGraph from './components/logVis/SplomGraph';
 import ParallelGraph from './components/logVis/ParallelGraph';
 import ViolinGraph from './components/logVis/ViolinGraph';
 import OscillationGraph from './components/logVis/OscillationGraph';
+import { useLocation } from 'react-router-dom';
 
 const Container = styled.div`
     display: flex;
     height: 100vh;
     justify-content: center;
     align-items: center;
+    opacity: 0;
+    transition: opacity 0.8s ease;
 `;
 
 const LogList = styled.div`
@@ -173,6 +176,7 @@ const parseLogData = (content) => {
 };
 
 function Project() {
+    const location = useLocation();
     const [inputData, setInputData] = useState([]);
     const [outputData, setOutputData] = useState([]);
     const [logFiles, setLogFiles] = useState([]);
@@ -249,6 +253,29 @@ function Project() {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.close();
             }
+        };
+    }, []);
+
+    useEffect(() => {
+        // Fade in when component mounts
+        const container = document.querySelector('.project-container');
+        if (container) {
+            // Add a slight delay before fading in
+            setTimeout(() => {
+                requestAnimationFrame(() => {
+                    container.style.opacity = '1';
+                });
+            }, 100);
+        }
+
+        // Reset body opacity with the same transition duration
+        document.body.style.transition = 'opacity 0.8s ease';
+        document.body.style.opacity = '1';
+        
+        return () => {
+            // Cleanup transition styles when component unmounts
+            document.body.style.opacity = '';
+            document.body.style.transition = '';
         };
     }, []);
 
@@ -340,7 +367,7 @@ function Project() {
     };
 
     return (
-        <Container>
+        <Container className="project-container">
             <LogList>
                 <Typography variant="h6" gutterBottom>Select Log Files</Typography>
                 <LogListContent>

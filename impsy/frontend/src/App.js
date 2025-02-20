@@ -14,6 +14,7 @@ import FAQ from './Faq';
 import RecentProjects from "./Recent";
 import Project from "./Project";
 import { createGlobalStyle } from 'styled-components';
+import styled from 'styled-components';
 
 // Create a new component for the header
 const Header = ({ toggleMenu, isMenuOpen }) => {
@@ -56,8 +57,15 @@ const Header = ({ toggleMenu, isMenuOpen }) => {
   );
 };
 
+const PageContainer = styled.main`
+    flex: 1;
+    transition: opacity 0.8s ease-in-out;
+    opacity: ${props => props.isTransitioning ? 0 : 1};
+`;
+
 function App() {
   const [isMenuOpen, setMenuOpen] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   let closeTimeout = null;  // Declare a variable to hold the timeout, so it can be cleared if needed
 
   const toggleMenu = () => {
@@ -97,7 +105,7 @@ function App() {
           <Route path="*" element={<Header toggleMenu={toggleMenu} isMenuOpen={isMenuOpen} />} />
         </Routes>
         <TogglableMenu isOpen={isMenuOpen} onClose={closeMenu} />
-        <main style={{ flex: 1, transition: 'margin 0.3s ease-in-out' }}>
+        <PageContainer isTransitioning={isTransitioning}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/datasets" element={<Datasets />} />
@@ -110,7 +118,7 @@ function App() {
             <Route path="/feedback" element={<FeedbackForm />} />
             <Route path="/project" element={<Project />} />
           </Routes>
-        </main>
+        </PageContainer>
       </div>
     </Router>
   );

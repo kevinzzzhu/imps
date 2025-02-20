@@ -569,11 +569,14 @@ const RightSide = () => {
             const loadResponse = await axios.post('/api/load-model', {
                 projectName: projectName
             });
-
-            alert('Project created and model loaded successfully!');
             
             // Use navigate instead of window.location
-            navigate('/project');
+            navigate('/project', { 
+                state: { 
+                    transition: 'fade',
+                    from: 'home' 
+                }
+            });
             
         } catch (error) {
             console.error('Error creating project:', error);
@@ -768,6 +771,21 @@ const RightSide = () => {
         } catch (error) {
             alert('Failed to import model files: ' + (error.response?.data?.error || error.message));
         }
+    };
+
+    const handleLoadModel = () => {
+        // Add a slower fade-out effect before navigation
+        document.body.style.opacity = '0';
+        document.body.style.transition = 'opacity 0.8s ease'; // Increased from 0.3s to 0.8s
+        
+        setTimeout(() => {
+            navigate('/project', { 
+                state: { 
+                    transition: 'fade',
+                    from: 'home' 
+                }
+            });
+        }, 800); // Increased from 300 to 800 to match transition time
     };
 
     return (
