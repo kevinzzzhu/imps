@@ -78,7 +78,56 @@ export const TogglableMenu = ({ isOpen, onClose }) => {
     const handleFileSelect = (event) => {
         const file = event.target.files[0];
         if (file) {
-            // navigate('/', { state: { file: file.name } });
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const configContent = e.target.result;
+                    const projectName = file.name.replace('.toml', '');
+
+                    // Create new project with the config file
+                    const response = await fetch('/api/new-project', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            projectName,
+                            configContent,
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to create project');
+                    }
+
+                    // Load the project
+                    const loadResponse = await fetch('/api/load-model', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            projectName,
+                        }),
+                    });
+
+                    if (!loadResponse.ok) {
+                        throw new Error('Failed to load project');
+                    }
+
+                    navigate('/project/' + projectName, { 
+                        replace: true, 
+                        state: { 
+                            reset: Date.now(),
+                            projectLoaded: true,
+                            projectName 
+                        } 
+                    });
+                } catch (error) {
+                    console.error('Error handling project:', error);
+                }
+            };
+            reader.readAsText(file);
         }
     };
 

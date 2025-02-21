@@ -9,6 +9,13 @@ import SplomGraph from '../logVis/SplomGraph';
 import ParallelGraph from '../logVis/ParallelGraph';
 import ViolinGraph from '../logVis/ViolinGraph';
 import OscillationGraph from '../logVis/OscillationGraph';
+import AreaGraph from '../logVis/AreaGraph';
+import RadarGraph from '../logVis/RadarGraph';
+import FunnelGraph from '../logVis/FunnelGraph';
+import ScatterGraph from '../logVis/ScatterGraph';
+import LineGraph from '../logVis/LineGraph';
+import HeatmapGraph from '../logVis/HeatmapGraph';
+import StackedGraph from '../logVis/StackedGraph';
 
 const Container = styled.div`
     display: flex;
@@ -184,7 +191,7 @@ const FilterMenu = styled.div`
     display: flex;
     flex-direction: column;
     gap: 10px;
-    z-index: 1000;
+    z-index: 9999;
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     
@@ -696,7 +703,7 @@ const LeftSide = ({ onTrainingStart }) => {
                                 variant={selectedView === 'basic' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('basic')}
                             >
-                                Basic View
+                                Basic Time Series View
                             </Button>
                             <Button
                                 variant={selectedView === 'delaunay' ? 'contained' : 'outlined'} 
@@ -728,6 +735,48 @@ const LeftSide = ({ onTrainingStart }) => {
                             >
                                 Oscillation View
                             </Button>
+                            <Button
+                                variant={selectedView === 'radar' ? 'contained' : 'outlined'}
+                                onClick={() => setSelectedView('radar')}
+                            >
+                                Radar View
+                            </Button>
+                            <Button
+                                variant={selectedView === 'area' ? 'contained' : 'outlined'}
+                                onClick={() => setSelectedView('area')}
+                            >
+                                Area View
+                            </Button>
+                            <Button
+                                variant={selectedView === 'funnel' ? 'contained' : 'outlined'}
+                                onClick={() => setSelectedView('funnel')}
+                            >
+                                Funnel View
+                            </Button>
+                            <Button
+                                variant={selectedView === 'scatter' ? 'contained' : 'outlined'}
+                                onClick={() => setSelectedView('scatter')}
+                            >
+                                Scatter View
+                            </Button>
+                            <Button
+                                variant={selectedView === 'line' ? 'contained' : 'outlined'}
+                                onClick={() => setSelectedView('line')}
+                            >
+                                Line View
+                            </Button>
+                            <Button
+                                variant={selectedView === 'heatmap' ? 'contained' : 'outlined'}
+                                onClick={() => setSelectedView('heatmap')}
+                            >
+                                Heatmap View
+                            </Button>
+                            <Button
+                                variant={selectedView === 'stacked' ? 'contained' : 'outlined'}
+                                onClick={() => setSelectedView('stacked')}
+                            >
+                                Stacked View
+                            </Button>
                         </Box>
 
                         {/* Visualization views */}
@@ -735,7 +784,7 @@ const LeftSide = ({ onTrainingStart }) => {
                             {selectedView === 'basic' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
-                                        Basic View
+                                    Basic Time Series View
                                     </Typography>
                                     {logData && <TimeSeriesGraph data={logData} />}
                                 </Box>
@@ -778,6 +827,62 @@ const LeftSide = ({ onTrainingStart }) => {
                                         Oscillation View
                                     </Typography>
                                     {logData && <OscillationGraph data={logData} />}
+                                </Box>
+                            )}
+                            {selectedView === 'radar' && (
+                                <Box>
+                                    <Typography variant="subtitle1" style={{ color: 'white' }}>
+                                        Radar View
+                                    </Typography>
+                                    {logData && <RadarGraph data={logData} />}
+                                </Box>
+                            )}
+                            {selectedView === 'area' && (
+                                <Box>
+                                    <Typography variant="subtitle1" style={{ color: 'white' }}>
+                                        Area View
+                                    </Typography>
+                                    {logData && <AreaGraph data={logData} />}
+                                </Box>
+                            )}
+                            {selectedView === 'funnel' && (
+                                <Box>
+                                    <Typography variant="subtitle1" style={{ color: 'white' }}>
+                                        Funnel View
+                                    </Typography>
+                                    {logData && <FunnelGraph data={logData} />}
+                                </Box>
+                            )}
+                            {selectedView === 'scatter' && (
+                                <Box>
+                                    <Typography variant="subtitle1" style={{ color: 'white' }}>
+                                        Scatter View
+                                    </Typography>
+                                    {logData && <ScatterGraph data={logData} />}
+                                </Box>
+                            )}
+                            {selectedView === 'line' && (
+                                <Box>
+                                    <Typography variant="subtitle1" style={{ color: 'white' }}>
+                                        Line View
+                                    </Typography>
+                                    {logData && <LineGraph data={logData} />}
+                                </Box>
+                            )}
+                            {selectedView === 'heatmap' && (
+                                <Box>
+                                    <Typography variant="subtitle1" style={{ color: 'white' }}>
+                                        Heatmap View
+                                    </Typography>
+                                    {logData && <HeatmapGraph data={logData} />}
+                                </Box>
+                            )}
+                            {selectedView === 'stacked' && (
+                                <Box>
+                                    <Typography variant="subtitle1" style={{ color: 'white' }}>
+                                        Stacked View
+                                    </Typography>
+                                    {logData && <StackedGraph data={logData} />}
                                 </Box>
                             )}
                         </Box>

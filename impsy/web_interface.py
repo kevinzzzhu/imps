@@ -216,15 +216,39 @@ def get_config():
 # Update the current configuration file
 @app.route('/api/config', methods=['POST'])
 def update_config():
-    config_content = request.json.get('config_content')
-    if config_content is not None:
-        try:
-            with open(CONFIG_FILE, 'w') as f:
+    try:
+        config_content = request.json.get('config_content')
+        project_name = request.json.get('project_name')
+        
+        if config_content is None:
+            return jsonify({'error': 'Invalid data'}), 400
+
+        # Save to global config
+        with open(CONFIG_FILE, 'w') as f:
+            f.write(config_content)
+
+        # If project name is provided, save to project config
+        if project_name:
+            # Find the project config file
+            project_path = Path(PROJECTS_DIR)
+            
+            # Check for exact match first
+            exact_match = project_path / f"{project_name}.toml"
+            if exact_match.exists():
+                project_file = exact_match
+            else:
+                # Look for numbered versions
+                project_files = list(project_path.glob(f"{project_name}-*.toml"))
+                project_file = project_files[-1] if project_files else exact_match
+
+            # Save to project config
+            with open(project_file, 'w') as f:
                 f.write(config_content)
-            return jsonify({'message': 'Config saved successfully'}), 200
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    return jsonify({'error': 'Invalid data'}), 400
+
+        return jsonify({'message': 'Config saved successfully'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Download a log file
 @app.route('/download_log/<filename>')
@@ -687,37 +711,7 @@ def load_model():
     except Exception as e:
         print(f"Error loading model: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-@click.command()
-@click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')
-@click.option('--port', default=DEFAULT_PORT, help='The port to bind to.')
-@click.option('--debug', is_flag=True, help='Run in debug mode.')
-@click.option('--dev', is_flag=True, help='Run in development mode with React (Hot Reload)')
-def webui(host, port, debug, dev):
-    print("Starting IMPSY web interface...")
     
-    # Create and run event loop in a separate thread
-    def run_async_server():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        # Create a new OSC server instance in this thread
-        thread_osc_server = IMPSYOSCServer()
-        loop.run_until_complete(thread_osc_server.start())
-        loop.run_forever()
-    
-    # Start OSC server in a separate thread
-    import threading
-    osc_thread = threading.Thread(target=run_async_server, daemon=True)
-    osc_thread.start()
-    
-    if dev:
-        subprocess.Popen(['npm', 'start'], cwd='./impsy/frontend')
-    
-    # Run Flask app
-    app.run(host=host, port=port, debug=debug)
-
-# Add this new route to handle running the model
 @app.route('/api/run-model', methods=['POST'])
 def run_model():
     try:
@@ -779,6 +773,68 @@ def stop_model():
             "success": False,
             "error": str(e)
         }), 500
+
+@app.route('/api/projects', methods=['GET'])
+def get_projects():
+    try:
+        projects = []
+        project_path = Path(PROJECTS_DIR)
+        
+        # Get all .toml files in projects directory
+        for file in project_path.glob('*.toml'):
+            try:
+                # Read the project config to get metadata
+                with open(file, 'r') as f:
+                    config_content = f.read()
+                    config_data = tomllib.loads(config_content)
+                    
+                projects.append({
+                    'name': file.stem,
+                    'title': config_data.get('title', file.stem),
+                    'owner': config_data.get('owner', 'Unknown'),
+                    'description': config_data.get('description', ''),
+                    'last_modified': os.path.getmtime(file)
+                })
+            except Exception as e:
+                print(f"Error reading project {file}: {e}")
+                continue
+        
+        # Sort projects by last modified time (newest first)
+        projects.sort(key=lambda x: x['last_modified'], reverse=True)
+        
+        return jsonify(projects)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@click.command()
+@click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')
+@click.option('--port', default=DEFAULT_PORT, help='The port to bind to.')
+@click.option('--debug', is_flag=True, help='Run in debug mode.')
+@click.option('--dev', is_flag=True, help='Run in development mode with React (Hot Reload)')
+def webui(host, port, debug, dev):
+    print("Starting IMPSY web interface...")
+    
+    # Create and run event loop in a separate thread
+    def run_async_server():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Create a new OSC server instance in this thread
+        thread_osc_server = IMPSYOSCServer()
+        loop.run_until_complete(thread_osc_server.start())
+        loop.run_forever()
+    
+    # Start OSC server in a separate thread
+    import threading
+    osc_thread = threading.Thread(target=run_async_server, daemon=True)
+    osc_thread.start()
+    
+    if dev:
+        subprocess.Popen(['npm', 'start'], cwd='./impsy/frontend')
+    
+    # Run Flask app
+    app.run(host=host, port=port, debug=debug)
 
 if __name__ == "__main__":
     webui()

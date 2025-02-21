@@ -101,7 +101,7 @@ const Title = styled(Typography)`
     margin: 20px;
 `;
 
-const TrainingVisualizer = ({ onClose, exitDirection = 'right' }) => {
+const TrainingVisualizer = ({ exitDirection = 'right' }) => {
     const [trainingLog, setTrainingLog] = useState([]);
     const [isExiting, setIsExiting] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);

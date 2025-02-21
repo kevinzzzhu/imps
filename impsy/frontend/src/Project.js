@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, List, ListItem, Box, Modal, Paper, Button } from '@mui/material';
+import { Typography, List, ListItem, Box, Modal, Paper, Button, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Switch, TextField } from '@mui/material';
 import InputVis from './components/project/InputVis';
 import OutputVis from './components/project/OutputVis';
 import { Audio } from 'react-loader-spinner';
@@ -12,6 +12,7 @@ import ParallelGraph from './components/logVis/ParallelGraph';
 import ViolinGraph from './components/logVis/ViolinGraph';
 import OscillationGraph from './components/logVis/OscillationGraph';
 import { useLocation, useNavigate } from 'react-router-dom';
+import TrainingVisualizer from './components/home/TrainingVisualizer';
 
 const Container = styled.div`
     display: flex;
@@ -27,7 +28,7 @@ const LogList = styled.div`
     background-color: #f4f4f4;
     padding: 20px;
     flex-shrink: 0;
-    height: 80vh;
+    height: 85vh;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -131,6 +132,7 @@ const RunButtonContainer = styled.div`
     z-index: 100;
     display: flex;
     align-items: center;
+    gap: 10px;
     background: rgba(255, 255, 255, 0.1);
     padding: 8px 16px;
     border-radius: 12px;
@@ -234,12 +236,143 @@ const LogItem = styled(ListItem)`
     }
 `;
 
+const ConfigContainer = styled.div`
+    position: fixed;
+    top: 40px;
+    right: ${props => props.isOpen ? '20px' : 'calc(-70vw - 40px)'};
+    width: 70vw;
+    height: 90vh;
+    max-height: 80vh;
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(10px);
+    transition: right 0.3s ease;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+
+    &::before {
+        content: '${props => props.isOpen ? '›' : '‹'}';
+        position: absolute;
+        left: -20px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 60px;
+        background: rgba(30, 30, 30, 0.95);
+        border-radius: 8px 0 0 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        cursor: pointer;
+        font-size: 20px;
+        transition: background-color 0.2s ease;
+
+        &:hover {
+            background: rgba(40, 40, 40, 0.95);
+        }
+    }
+`;
+
+const ConfigCloseButton = styled.button`
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+    
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+`;
+
+const ConfigTitle = styled.h2`
+    color: white;
+    margin: 0 0 20px;
+    font-size: 20px;
+    padding-right: 40px;
+`;
+
+const ConfigContent = styled.div`
+    flex: 1;
+    overflow-y: auto;
+    color: white;
+    font-size: 14px;
+    
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    &::-webkit-scrollbar {
+        display: none;
+    }
+    
+    /* Hide scrollbar for IE, Edge and Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+`;
+
+const ConfigTextArea = styled.textarea`
+    width: 100%;
+    height: 100%;
+    padding: 15px;
+    background-color: transparent;
+    color: white;
+    font-family: monospace;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    border: none;
+    border-radius: 4px;
+    
+    &:hover {
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+        border-color: rgba(52, 152, 219, 0.8);
+    }
+`;
+
+const SaveButton = styled.button`
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    background-color: #4CAF50;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        background-color: #45a049;
+    }
+
+    &:active {
+        transform: translateY(1px);
+    }
+`;
+
 const parseLogData = (content) => {
     try {
         const lines = content.trim().split('\n');
         const data = {
             dimension: 0,
-            samples: []  // Array of complete data points
+            samples: [] 
         };
         
         lines.forEach(line => {
@@ -286,6 +419,19 @@ function Project() {
     const [selectedLogs, setSelectedLogs] = useState([]);
     const [selectedView, setSelectedView] = useState('basic');
     const [isModelRunning, setIsModelRunning] = useState(false);
+    const [isConfigOpen, setIsConfigOpen] = useState(false);
+    const [configContent, setConfigContent] = useState('');
+    const [trainingStats, setTrainingStats] = useState(null);
+    const [showTrainingDialog, setShowTrainingDialog] = useState(false);
+    const [showTrainingVisualizer, setShowTrainingVisualizer] = useState(false);
+    const [trainingConfig, setTrainingConfig] = useState({
+        modelSize: 's',
+        earlyStoppingEnabled: true,
+        patience: 10,
+        numEpochs: 100,
+        batchSize: 64
+    });
+    const [selectedDimension, setSelectedDimension] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -436,33 +582,60 @@ function Project() {
         });
     };
 
-    // Add handler for train button
-    const handleTrain = async () => {
+    const handleCreateDataset = async () => {
         if (selectedLogs.length === 0) {
             alert('Please select at least one log file');
             return;
         }
 
+        // Extract dimension from the first selected log file name
+        const dimensionMatch = selectedLogs[0].match(/(\d+)d/);
+        if (!dimensionMatch) {
+            alert('Could not determine dimension from log file name');
+            return;
+        }
+        const dimension = parseInt(dimensionMatch[1]);
+
         try {
-            setLoading(true);  // Add loading state
-            const response = await axios.post('/api/train', {
-                logFiles: selectedLogs
+            const response = await axios.post('/api/create-dataset', {
+                logFiles: selectedLogs,
             });
             
-            // Show training stats
-            const stats = response.data.stats;
-            alert(
-                `Training started successfully!\n\n` +
-                `Total values: ${stats.total_values}\n` +
-                `Total interactions: ${stats.total_interactions}\n` +
-                `Total time: ${stats.total_time.toFixed(2)}s\n` +
-                `Number of performances: ${stats.num_performances}`
-            );
+            if (response.data.status === 'success') {
+                setTrainingStats({
+                    totalValues: response.data.stats.total_values,
+                    totalInteractions: response.data.stats.total_interactions,
+                    totalTime: response.data.stats.total_time,
+                    numPerformances: response.data.stats.num_performances,
+                    datasetFile: response.data.dataset_file
+                });
+                setSelectedDimension(dimension);  // Store the dimension for later use
+                setShowTrainingDialog(true);
+            }
         } catch (error) {
-            console.error('Error starting training:', error);
-            alert('Failed to start training: ' + error.response?.data?.error || error.message);
-        } finally {
-            setLoading(false);
+            console.error('Failed to create dataset:', error);
+            alert('Failed to create dataset: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
+    // Add handleStartTraining function
+    const handleStartTraining = async () => {
+        setShowTrainingDialog(false);
+        setShowTrainingVisualizer(true);
+        
+        try {
+            await axios.post('/api/start-training', {
+                dimension: selectedDimension,
+                datasetFile: `training-dataset-${selectedDimension}d-selected.npz`,
+                modelSize: trainingConfig.modelSize,
+                earlyStoppingEnabled: trainingConfig.earlyStoppingEnabled,
+                patience: trainingConfig.patience,
+                numEpochs: trainingConfig.numEpochs,
+                batchSize: trainingConfig.batchSize
+            });
+        } catch (error) {
+            console.error('Failed to start training process:', error);
+            alert('Failed to start training: ' + (error.response?.data?.error || error.message));
         }
     };
 
@@ -519,10 +692,80 @@ function Project() {
         };
     }, [stopModel]);
 
+    useEffect(() => {
+        fetchConfig();
+    }, []);
+
+    const fetchConfig = async () => {
+        try {
+            const response = await axios.get('/api/config');
+            setConfigContent(response.data.config_content);
+        } catch (error) {
+            console.error('Failed to fetch config:', error);
+        }
+    };
+
+    const handleConfigUpdate = async () => {
+        try {
+            // Get project name from the current URL path
+            const projectName = location.pathname.split('/').pop();
+            
+            await axios.post('/api/config', {
+                config_content: configContent,
+                project_name: projectName
+            });
+            alert('Configuration updated successfully!');
+        } catch (error) {
+            console.error('Failed to update config:', error);
+            alert('Failed to update configuration: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
+    // Add this function to handle log file imports
+    const handleImportLogs = async (event) => {
+        const files = event.target.files;
+        if (!files.length) return;
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+
+        try {
+            const response = await axios.post('/api/import-logs', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            if (response.data.imported_files?.length > 0) {
+                // Refresh the log files list
+                fetchLogFiles();
+                
+                // Try to determine dimension from first file name
+                const firstFile = response.data.imported_files[0];
+                const dimensionMatch = firstFile.match(/(\d+)d/);
+                if (dimensionMatch) {
+                    setSelectedDimension(parseInt(dimensionMatch[1]));
+                }
+            }
+
+            if (response.data.errors?.length > 0) {
+                alert(`Some files had errors:\n${response.data.errors.join('\n')}`);
+            }
+        } catch (error) {
+            console.error('Error importing logs:', error);
+            alert('Failed to import logs: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
     return (
         <Container className="project-container">
             <LogList>
-                <Typography variant="h6" gutterBottom>Select Log Files</Typography>
+                <Typography variant="h5" gutterBottom>Model Distillation</Typography>
+                <Typography variant="subtitle1" gutterBottom sx={{ color: '#666666' }}>
+                    Select Log Files
+                </Typography>
                 <LogListContent>
                     {loading ? (
                         <Audio height="80" width="80" color="green" ariaLabel="loading" />
@@ -553,16 +796,31 @@ function Project() {
                     )}
                 </LogListContent>
                 <ButtonContainer>
-                    <button>Import</button>
-                    <button 
-                        onClick={handleTrain}
+                    <input
+                        type="file"
+                        id="log-file-input"
+                        multiple
+                        accept=".log"
+                        style={{ display: 'none' }}
+                        onChange={handleImportLogs}
+                    />
+                    <Button 
+                        onClick={() => document.getElementById('log-file-input').click()}
+                        variant="contained"
+                        size="small"
+                        fullWidth
+                    >
+                        Import
+                    </Button>
+                    <Button 
+                        onClick={handleCreateDataset}
+                        variant="contained"
+                        size="small"
+                        fullWidth
                         disabled={selectedLogs.length === 0}
-                        style={{
-                            opacity: selectedLogs.length === 0 ? 0.5 : 1
-                        }}
                     >
                         Train
-                    </button>
+                    </Button>
                 </ButtonContainer>
             </LogList>
 
@@ -610,7 +868,7 @@ function Project() {
                             variant={selectedView === 'basic' ? 'contained' : 'outlined'}
                             onClick={() => setSelectedView('basic')}
                         >
-                            Basic View
+                            Basic Time Series View
                         </Button>
                         <Button
                             variant={selectedView === 'delaunay' ? 'contained' : 'outlined'} 
@@ -705,6 +963,181 @@ function Project() {
                     </Box>
                 </ModalContent>
             </StyledModal>
+
+            <ConfigContainer 
+                isOpen={isConfigOpen} 
+                onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    if (e.clientX < rect.x) {
+                        setIsConfigOpen(!isConfigOpen);
+                    }
+                }}
+            >
+                <ConfigTitle>Configuration</ConfigTitle>
+                <ConfigCloseButton onClick={() => setIsConfigOpen(false)}>×</ConfigCloseButton>
+                <ConfigContent>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        height: '100%',
+                        gap: '10px'
+                    }}>
+                        <Box sx={{ flex: 1 }}>
+                            <ConfigTextArea
+                                value={configContent}
+                                onChange={(e) => setConfigContent(e.target.value)}
+                            />
+                        </Box>
+                    </Box>
+                </ConfigContent>
+                <SaveButton onClick={handleConfigUpdate}>
+                    Save
+                </SaveButton>
+            </ConfigContainer>
+
+            <Modal
+                open={showTrainingDialog}
+                onClose={() => setShowTrainingDialog(false)}
+            >
+                <Box sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 400,
+                    bgcolor: 'background.paper',
+                    boxShadow: 24,
+                    p: 3,
+                    borderRadius: 2,
+                }}>
+                    <Typography variant="h6" component="h2" gutterBottom sx={{ fontSize: '1.1rem' }}>
+                        Dataset created successfully!
+                    </Typography>
+                    
+                    {trainingStats && (
+                        <Box sx={{ mt: 1, mb: 2 }}>
+                            <Typography sx={{ fontSize: '0.9rem' }}>Total values: {trainingStats.totalValues}</Typography>
+                            <Typography sx={{ fontSize: '0.9rem' }}>Total interactions: {trainingStats.totalInteractions}</Typography>
+                            <Typography sx={{ fontSize: '0.9rem' }}>Total time: {trainingStats.totalTime.toFixed(2)}s</Typography>
+                            <Typography sx={{ fontSize: '0.9rem' }}>Number of performances: {trainingStats.numPerformances}</Typography>
+                            <Typography sx={{ mt: 1, color: 'text.secondary', fontSize: '0.8rem' }}>
+                                Dataset saved as: <br/>
+                                <code style={{ backgroundColor: 'rgba(0,0,0,0.05)', padding: '2px 4px' }}>
+                                    ./datasets/{trainingStats.datasetFile.split('/').pop()}
+                                </code>
+                            </Typography>
+                        </Box>
+                    )}
+
+                    <Typography variant="h6" sx={{ mt: 2, mb: 1, fontSize: '1rem' }}>
+                        Training Configuration (Optional)
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Model Size</InputLabel>
+                            <Select
+                                value={trainingConfig.modelSize}
+                                onChange={(e) => setTrainingConfig(prev => ({ ...prev, modelSize: e.target.value }))}
+                                label="Model Size"
+                            >
+                                <MenuItem value="xxs">XXS - Extra Extra Small</MenuItem>
+                                <MenuItem value="xs">XS - Extra Small</MenuItem>
+                                <MenuItem value="s">S - Small (Default)</MenuItem>
+                                <MenuItem value="m">M - Medium</MenuItem>
+                                <MenuItem value="l">L - Large</MenuItem>
+                                <MenuItem value="xl">XL - Extra Large</MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={trainingConfig.earlyStoppingEnabled}
+                                    onChange={(e) => setTrainingConfig(prev => ({ 
+                                        ...prev, 
+                                        earlyStoppingEnabled: e.target.checked 
+                                    }))}
+                                    size="small"
+                                />
+                            }
+                            label="Early Stopping"
+                        />
+
+                        {trainingConfig.earlyStoppingEnabled && (
+                            <TextField
+                                size="small"
+                                type="number"
+                                label="Patience"
+                                value={trainingConfig.patience}
+                                onChange={(e) => setTrainingConfig(prev => ({ 
+                                    ...prev, 
+                                    patience: parseInt(e.target.value) 
+                                }))}
+                                helperText="Number of epochs to wait before early stopping"
+                            />
+                        )}
+
+                        <TextField
+                            size="small"
+                            type="number"
+                            label="Number of Epochs"
+                            value={trainingConfig.numEpochs}
+                            onChange={(e) => setTrainingConfig(prev => ({ 
+                                ...prev, 
+                                numEpochs: parseInt(e.target.value) 
+                            }))}
+                        />
+
+                        <TextField
+                            size="small"
+                            type="number"
+                            label="Batch Size"
+                            value={trainingConfig.batchSize}
+                            onChange={(e) => setTrainingConfig(prev => ({ 
+                                ...prev, 
+                                batchSize: parseInt(e.target.value) 
+                            }))}
+                        />
+
+                        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                            <Button
+                                variant="contained"
+                                onClick={handleStartTraining}
+                                sx={{ flex: 1 }}
+                            >
+                                Start Training
+                            </Button>
+                        </Box>
+                    </Box>
+                </Box>
+            </Modal>
+
+            {showTrainingVisualizer && (
+                <>
+                    <TrainingVisualizer
+                        onClose={() => setShowTrainingVisualizer(false)}
+                    />
+                    <Button
+                        variant="contained"
+                        onClick={() => navigate('/')}
+                        sx={{
+                            position: 'fixed',
+                            top: '20px',
+                            right: '20px',
+                            zIndex: 1001,
+                            backgroundColor: 'white',
+                            color: '#333',
+                            '&:hover': {
+                                backgroundColor: '#f0f0f0',
+                            },
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                        }}
+                    >
+                        Go to Home
+                    </Button>
+                </>
+            )}
         </Container>
     );
 }

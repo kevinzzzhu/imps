@@ -116,7 +116,7 @@ function App() {
             <Route path="/faq" element={<FAQ />} />
             <Route path="/about" element={<About />} />
             <Route path="/feedback" element={<FeedbackForm />} />
-            <Route path="/project" element={<Project />} />
+            <Route path="/project/:projectName" element={<Project />} />
           </Routes>
         </PageContainer>
       </div>
