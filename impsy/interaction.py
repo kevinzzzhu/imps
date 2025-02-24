@@ -10,6 +10,8 @@ import click
 from .utils import mdrnn_config, get_config_data, print_io
 import impsy.impsio as impsio
 from pathlib import Path
+import tomllib  # for reading TOML
+import tomli_w  # for writing TOML
 
 np.set_printoptions(precision=2)
 
@@ -56,7 +58,7 @@ def setup_logging(dimension: int, location="logs", delay_file_open=True):
     logger.addHandler(file_handler)
 
     click.secho(f"Logging enabled: {log_name}", fg="green")
-    return logger
+    return logger, str(log_name)
 
 
 def log_interaction(source: str, values: np.ndarray, logger: logging.Logger):
@@ -131,7 +133,15 @@ class InteractionServer(object):
 
         ## Set up log
         self.log_location = log_location
-        self.logger = setup_logging(self.dimension, location=self.log_location)
+        self.logger, log_name = setup_logging(self.dimension, location=self.log_location)
+        
+        # Update config with log file name
+        if "log" not in self.config:
+            self.config["log"] = {}
+        self.config["log"]["current_file"] = log_name
+        
+        # Update both global and project configs
+        self.update_configs(self.config)
 
         ## Set up IO.
         self.senders = []
@@ -368,6 +378,54 @@ class InteractionServer(object):
             self.shutdown()
         finally:
             click.secho("\nIMPSY has shut down. Bye!", fg="red")
+
+    def update_configs(self, config):
+        """Update both global and project configs with new log file name"""
+        def update_log_in_config(config_file):
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    content = f.read()
+                
+                # Find ALL existing log files
+                import re
+                log_files = []
+                
+                # Find all file entries with better quote handling
+                all_file_matches = re.findall(r'file\s*=\s*\[(.*?)\]', content, re.DOTALL)
+                for match in all_file_matches:
+                    # Split files and clean each entry
+                    files = [f.strip(' \t\n\r"\'') for f in match.split(',') if f.strip()]
+                    log_files.extend(files)
+                
+                # Add new file if not already present
+                new_file = self.config["log"]["current_file"]
+                if new_file not in log_files:
+                    log_files.append(new_file)
+                
+                # Create clean log section with proper formatting
+                new_log_section = '[log]\nfile = [\n  ' + ',\n  '.join(
+                    f'"{f}"' for f in log_files if f
+                ) + '\n]\n'
+                
+                # Remove existing log section completely
+                content = re.sub(r'\[log\].*?(\n\[|\Z)', '\n', content, flags=re.DOTALL)
+                
+                # Add new log section at the end with clean formatting
+                content = content.rstrip() + '\n\n' + new_log_section
+                
+                with open(config_file, 'w') as f:
+                    f.write(content)
+
+        # Update global config
+        update_log_in_config(Path('config.toml'))
+        
+        # Update project config if project_name exists
+        project_name = config.get('project_name')
+        if project_name:
+            project_path = Path('projects')
+            project_file = project_path / f"{project_name}.toml"
+            if project_file.exists():
+                update_log_in_config(project_file)
 
 
 @click.command(name="run")

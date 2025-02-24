@@ -146,6 +146,25 @@ docker run -d -v $(pwd)/datasets:/code/datasets -v $(pwd)/logs:/code/logs -v $(p
 ```
 This can be useful to use the `dataset` or `train` commands to generate new datasets and models.
 
+## Configuration
+
+The configuration for IMPSY is done through a `.toml` file, typically named `config.toml`. Below is an example configuration:
+
+```toml
+[osc] # Changed from localhost to 127.0.0.1
+server_ip = "127.0.0.1" # Address of IMPSY
+server_port = 5000 # Port IMPSY listens on
+client_ip = "127.0.0.1" # Address of the output device
+client_port = 5002 # Port of the output device
+
+# Backend → Port 5002 → Server → Port 5003 → Device 
+#                             └→ WebSocket (8080) → Frontend 
+
+# Device → Port 5004 → Server → Port 5000 → Backend
+#                             └→ WebSocket (8080) → Frontend 
+```
+
+This configuration specifies the IP addresses and ports for the OSC communication between IMPSY and the connected devices. Make sure to adjust these settings according to your network setup.
 
 ## More about Mixture Density Recurrent Neural Networks
 

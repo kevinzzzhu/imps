@@ -496,7 +496,10 @@ const RightSide = () => {
             // Generate default project name from timestamp and model
             const timestamp = new Date().toISOString().slice(0,19).replace(/[-:]/g, '').replace('T', '-');
             const modelBaseName = selectedModel.replace(/\.(keras|h5|tflite)$/, '');
-            setProjectName(`${timestamp}-${modelBaseName}`);
+            const newProjectName = `${timestamp}-${modelBaseName}`;
+            
+            // Update project name and config
+            handleProjectNameChange(newProjectName);
             fetchConfig();
         }
     }, [selectedModel]);
@@ -773,6 +776,17 @@ const RightSide = () => {
         }
     };
 
+    const handleProjectNameChange = (newName) => {
+        setProjectName(newName);
+        
+        // Update config content with new project name
+        const updatedConfig = configContent.replace(
+            /project_name = ".*"/,
+            `project_name = "${newName}"`
+        );
+        setConfigContent(updatedConfig);
+    };
+
     return (
         <Container>
             <ModelList isExtended={isExtended}>
@@ -951,10 +965,13 @@ const RightSide = () => {
                 <ModelContent>
                     <ConfigHeader>
                         <TextField
-                            size="small"
+                            fullWidth
                             label="Project Name"
                             value={projectName}
-                            onChange={(e) => setProjectName(e.target.value)}
+                            onChange={(e) => handleProjectNameChange(e.target.value)}
+                            margin="normal"
+                            variant="outlined"
+                            size="small"
                             sx={{
                                 width: '300px',
                                 '& .MuiInputBase-input': {
