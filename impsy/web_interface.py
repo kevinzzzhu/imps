@@ -810,6 +810,52 @@ def get_projects():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/model-data/<path:model_dir>')
+def get_model_data(model_dir):
+    try:
+        # Get all logs from logs directory
+        all_logs = [f.name for f in LOGS_DIR.glob('*.log')]
+        
+        # Remove file extensions to get base model name
+        base_model_name = model_dir.replace('-ckpt.keras', '').replace('.keras', '').replace('.h5', '').replace('.tflite', '')
+        
+        # Get selected logs from data file
+        data_file = MODEL_DIR / base_model_name / 'data'
+        selected_logs = []
+        
+        if data_file.exists():
+            with open(data_file, 'r') as f:
+                content = f.read()
+                
+            if 'selected_logs: [' in content:
+                selected_section = content.split('selected_logs: [')[1].split(']')[0]
+                selected_logs = [log.strip(' ,\n"\'') for log in selected_section.split('\n') if log.strip(' ,\n"\'')]
+        
+        # Get current log file from config.toml [log] section
+        generated_logs = []
+        try:
+            with open(CONFIG_FILE, 'rb') as f:  # Note 'rb' mode for tomllib
+                config = tomllib.load(f)
+                if 'log' in config and 'file' in config['log']:
+                    log_files = config['log']['file']
+                    if log_files:
+                        generated_logs = [log_files[-1]]  # Get last log file
+                        print(f"Found generated logs: {generated_logs}")
+                    else:
+                        print("No log files in config")
+                else:
+                    print("No [log] section or file array in config")
+        except Exception as e:
+            print(f"Error reading config file: {e}")
+        
+        return jsonify({
+            'all_logs': all_logs,
+            'selected_logs': selected_logs,
+            'generated_logs': generated_logs
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @click.command()
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')
 @click.option('--port', default=DEFAULT_PORT, help='The port to bind to.')

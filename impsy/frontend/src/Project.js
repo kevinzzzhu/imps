@@ -24,8 +24,9 @@ const Container = styled.div`
 `;
 
 const LogList = styled.div`
-    width: 250px;
-    background-color: #f4f4f4;
+    width: 320px;
+    height: 80vh;
+    background: #f5f5f5;
     padding: 20px;
     flex-shrink: 0;
     height: 85vh;
@@ -36,12 +37,18 @@ const LogList = styled.div`
 `;
 
 const LogListContent = styled.div`
-    overflow-y: auto;
-    flex-grow: 1;
+    flex: 1;
+    overflow-y: ${props => props.$expanded ? 'auto' : 'hidden'};
+    max-height: ${props => props.$expanded ? '40vh' : '0'};
+    transition: max-height 0.3s ease-out;
+    margin: 0;
+    padding: ${props => props.$expanded ? '10px 0' : '0'};
+    opacity: ${props => props.$expanded ? '1' : '0'};
+    transition: all 0.3s ease;
 
-    /* Hide scrollbar for Chrome, Safari and Opera */
+    /* Scrollbar styles */
     &::-webkit-scrollbar {
-        display: none;
+        width: 8px;
     }
     
     /* Hide scrollbar for IE, Edge and Firefox */
@@ -50,9 +57,17 @@ const LogListContent = styled.div`
 `;
 
 const ButtonContainer = styled.div`
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
     display: flex;
     gap: 10px;
-    margin-top: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    backdrop-filter: blur(4px);
+    z-index: 100;
 
     button {
         padding: 8px 16px;
@@ -62,21 +77,17 @@ const ButtonContainer = styled.div`
         color: white;
         cursor: pointer;
         transition: all 0.2s ease;
+        font-size: 14px;
+        font-weight: 500;
 
         &:hover:not(:disabled) {
             background-color: #0056b3;
+            transform: translateY(-1px);
         }
 
         &:disabled {
             cursor: not-allowed;
             opacity: 0.5;
-        }
-
-        &.running {
-            background-color: #dc3545; 
-            &:hover {
-                background-color: #c82333; 
-            }
         }
     }
 `;
@@ -220,19 +231,27 @@ const CloseButton = styled.button`
     }
 `;
 
-const LogItem = styled(ListItem)`
-    &:hover {
-        background-color: #e0e0e0;
-    }
-    transition: background-color 0.2s;
+const LogItem = styled.div`
     display: flex;
     align-items: center;
-    gap: 10px;
+    padding: 8px 12px;
+    margin: 4px 0;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        background: #f8f9fa;
+        transform: translateX(2px);
+    }
 
     input[type="checkbox"] {
+        margin-right: 12px;
+        width: 18px;
+        height: 18px;
         cursor: pointer;
-        width: 16px;
-        height: 16px;
     }
 `;
 
@@ -367,6 +386,31 @@ const SaveButton = styled.button`
     }
 `;
 
+const LogSection = styled.div`
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+`;
+
+const SectionHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    cursor: pointer;
+    border-bottom: 1px solid #ddd;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba(0,0,0,0.05);
+    }
+`;
+
+const ExpandIcon = styled.span`
+    transform: ${props => props.expanded ? 'rotate(0deg)' : 'rotate(-90deg)'};
+    transition: transform 0.3s ease;
+    font-size: 12px;
+`;
+
 const parseLogData = (content) => {
     try {
         const lines = content.trim().split('\n');
@@ -434,36 +478,30 @@ function Project() {
     const [selectedDimension, setSelectedDimension] = useState(null);
     const navigate = useNavigate();
 
+    // Add state for expanded sections
+    const [expandedSections, setExpandedSections] = useState({
+        generated: false,
+        training: false,
+        other: false
+    });
+
+    // Add state for categorized logs
+    const [categorizedLogs, setCategorizedLogs] = useState({
+        generated: [],
+        training: [],
+        other: []
+    });
+
+    // Add this useEffect to automatically select training logs
     useEffect(() => {
-        fetchLogFiles();
-    }, []);
-    
-    const fetchLogFiles = async () => {
-        try {
-            const response = await axios.get('/api/logs');
-            setLogFiles(response.data);
-            setLoading(false);  // Set loading to false after fetching data
-        } catch (error) {
-            console.error('Failed to fetch log files:', error);
-            setLoading(false);  // Ensure loading is set to false even if there is an error
+        if (categorizedLogs.training.length > 0) {
+            setSelectedLogs(prev => [
+                ...new Set([...prev, ...categorizedLogs.training])
+            ]);
         }
-    };
+    }, [categorizedLogs.training]);
 
     useEffect(() => {
-        // Fetch log files
-        const fetchLogFiles = async () => {
-            try {
-                const response = await axios.get('/api/logs');
-                setLogFiles(response.data);
-                setLoading(false);
-            } catch (error) {
-                console.error('Error fetching log files:', error);
-                setLoading(false);
-            }
-        };
-
-        fetchLogFiles();
-
         // WebSocket connection
         const ws = new WebSocket('ws://localhost:8080');
         
@@ -646,6 +684,8 @@ function Project() {
             try {
                 setLoading(true);
                 await stopModel();
+                // Fetch config after stopping the model
+                await fetchConfig();
             } catch (error) {
                 console.error('Error stopping model:', error);
                 alert('Failed to stop model: ' + error.response?.data?.error || error.message);
@@ -738,10 +778,7 @@ function Project() {
                 }
             });
 
-            if (response.data.imported_files?.length > 0) {
-                // Refresh the log files list
-                fetchLogFiles();
-                
+            if (response.data.imported_files?.length > 0) {                
                 // Try to determine dimension from first file name
                 const firstFile = response.data.imported_files[0];
                 const dimensionMatch = firstFile.match(/(\d+)d/);
@@ -759,42 +796,190 @@ function Project() {
         }
     };
 
+    // Function to categorize logs
+    const categorizeLogs = useCallback(() => {
+        const modelDir = configContent.match(/file = "models\/(.*?)"/)?.[1];
+        if (!modelDir) return;
+
+        // Try to read the data file for this model
+        axios.get(`/api/model-data/${modelDir}`)
+            .then(response => {
+                const modelData = response.data;
+                const generatedLogs = modelData.generated_logs || [];
+                const trainingLogs = modelData.selected_logs || [];
+
+                // Categorize all logs
+                const categorized = {
+                    generated: [],
+                    training: [],
+                    other: []
+                };
+
+                logFiles.forEach(log => {
+                    if (generatedLogs.includes(log)) {
+                        categorized.generated.push(log);
+                    } else if (trainingLogs.includes(log)) {
+                        categorized.training.push(log);
+                    } else {
+                        categorized.other.push(log);
+                    }
+                });
+
+                setCategorizedLogs(categorized);
+            })
+            .catch(error => {
+                console.error('Error fetching model data:', error);
+            });
+    }, [configContent, logFiles]);
+
+    // Update categorization when logs or config changes
+    useEffect(() => {
+        categorizeLogs();
+    }, [configContent, logFiles, categorizeLogs]);
+
+    // Update the toggleSection function
+    const toggleSection = (section) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [section]: !prev[section],
+            // Close other sections when opening one
+            ...(Object.keys(prev).reduce((acc, key) => {
+                if (key !== section) acc[key] = false;
+                return acc;
+            }, {}))
+        }));
+    };
+
+    useEffect(() => {
+        // Get model name from config
+        const modelDir = configContent.match(/file = "models\/(.*?)"/)?.[1];
+        if (!modelDir) return;
+
+        // Fetch all data from model-data endpoint
+        const fetchModelData = async () => {
+            try {
+                setLoading(true);
+                const response = await axios.get(`/api/model-data/${modelDir}`);
+                const { generated_logs, selected_logs, all_logs } = response.data;
+                
+                // Set log files from the response
+                setLogFiles(all_logs);
+                
+                // Categorize logs
+                setCategorizedLogs({
+                    generated: generated_logs || [],
+                    training: selected_logs || [],
+                    other: all_logs.filter(log => 
+                        !generated_logs.includes(log) && 
+                        !selected_logs.includes(log)
+                    )
+                });
+
+                // Automatically select training logs
+                setSelectedLogs(selected_logs || []);
+
+            } catch (error) {
+                console.error('Error fetching model data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchModelData();
+    }, [configContent]);
+
     return (
         <Container className="project-container">
             <LogList>
                 <Typography variant="h5" gutterBottom>Model Distillation</Typography>
-                <Typography variant="subtitle1" gutterBottom sx={{ color: '#666666' }}>
-                    Select Log Files
-                </Typography>
-                <LogListContent>
-                    {loading ? (
-                        <Audio height="80" width="80" color="green" ariaLabel="loading" />
-                    ) : logFiles.length > 0 ? (
-                        <List>
-                            {logFiles.map((file, index) => (
-                                <LogItem 
-                                    button 
-                                    key={index} 
-                                    onClick={() => handleLogClick(file)}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedLogs.includes(file)}
-                                        onChange={(e) => {
-                                            e.stopPropagation();
-                                            handleCheckboxChange(file);
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    {file}
-                                </LogItem>
-                            ))}
-                        </List>
-                    ) : (
-                        <p>No log files found.</p>
-                    )}
-                </LogListContent>
+                
+                {/* Generated Logs Section */}
+                <LogSection>
+                    <SectionHeader onClick={() => toggleSection('generated')}>
+                        <Typography variant="subtitle1" sx={{ color: '#666666' }}>
+                            Logs Generated By This Model ({categorizedLogs.generated.length})
+                        </Typography>
+                        <ExpandIcon expanded={expandedSections.generated}>▼</ExpandIcon>
+                    </SectionHeader>
+                    <LogListContent $expanded={expandedSections.generated}>
+                        {categorizedLogs.generated.map((file, index) => (
+                            <LogItem 
+                                key={index} 
+                                onClick={() => handleLogClick(file)}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedLogs.includes(file)}
+                                    onChange={(e) => {
+                                        e.stopPropagation();
+                                        handleCheckboxChange(file);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                {file}
+                            </LogItem>
+                        ))}
+                    </LogListContent>
+                </LogSection>
+
+                {/* Training Logs Section */}
+                <LogSection>
+                    <SectionHeader onClick={() => toggleSection('training')}>
+                        <Typography variant="subtitle1" sx={{ color: '#666666' }}>
+                            Used to Train Current Model ({categorizedLogs.training.length})
+                        </Typography>
+                        <ExpandIcon expanded={expandedSections.training}>▼</ExpandIcon>
+                    </SectionHeader>
+                    <LogListContent $expanded={expandedSections.training}>
+                        {categorizedLogs.training.map((file, index) => (
+                            <LogItem 
+                                key={index} 
+                                onClick={() => handleLogClick(file)}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedLogs.includes(file)}
+                                    onChange={(e) => {
+                                        e.stopPropagation();
+                                        handleCheckboxChange(file);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                {file}
+                            </LogItem>
+                        ))}
+                    </LogListContent>
+                </LogSection>
+
+                {/* Other Logs Section */}
+                <LogSection>
+                    <SectionHeader onClick={() => toggleSection('other')}>
+                        <Typography variant="subtitle1" sx={{ color: '#666666' }}>
+                            Other Logs ({categorizedLogs.other.length})
+                        </Typography>
+                        <ExpandIcon expanded={expandedSections.other}>▼</ExpandIcon>
+                    </SectionHeader>
+                    <LogListContent $expanded={expandedSections.other}>
+                        {categorizedLogs.other.map((file, index) => (
+                            <LogItem 
+                                key={index} 
+                                onClick={() => handleLogClick(file)}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedLogs.includes(file)}
+                                    onChange={(e) => {
+                                        e.stopPropagation();
+                                        handleCheckboxChange(file);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                {file}
+                            </LogItem>
+                        ))}
+                    </LogListContent>
+                </LogSection>
+
                 <ButtonContainer>
                     <input
                         type="file"
