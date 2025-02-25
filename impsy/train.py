@@ -5,6 +5,7 @@ import numpy as np
 import click
 from .utils import mdrnn_config
 from pathlib import Path
+import os
 
 
 # Model training hyperparameters
@@ -59,6 +60,7 @@ def train_mdrnn(
     save_model: bool = True,
     save_weights: bool = False,
     save_tflite: bool = True,
+    log_files: list = None
 ):
     """Loads a dataset, creates a model and runs the training procedure."""
     import impsy.mdrnn as mdrnn
@@ -166,6 +168,19 @@ def train_mdrnn(
         tflite_file = model_to_tflite(inference_mdrnn.model, model_keras_file)
         output["tflite_file"] = tflite_file
 
+    # After saving the model files, create a directory for this model
+    model_dir = save_location / model_name
+    model_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create data file with log files information in list format
+    if log_files:
+        data_file = model_dir / "data"
+        with open(data_file, "w") as f:
+            f.write("selected_logs: [\n")
+            for log_file in log_files:
+                f.write(f"    {log_file},\n")
+            f.write("]\n")
+
     return output
 
 
@@ -211,6 +226,12 @@ def train_mdrnn(
     default=64,
     help="Batch size for training, default=64.",
 )
+@click.option(
+    "--log-files",
+    type=str,
+    default="",
+    help="Comma-separated list of log files used for training",
+)
 def train(
     dimension: int,
     source: str,
@@ -219,13 +240,16 @@ def train(
     patience: int,
     numepochs: int,
     batchsize: int,
+    log_files: str,
 ):
     """Trains an IMPSY MDRNN model based on an existing dataset (run dataset command first!)."""
+    log_files_list = log_files.split(",") if log_files else []
     click.secho(
         f"IMPSY: Going to train a {dimension}D, {modelsize} sized MDRNN model.",
         fg="green",
     )
     train_mdrnn(
-        dimension, source, modelsize, earlystopping, patience, numepochs, batchsize
+        dimension, source, modelsize, earlystopping, patience, numepochs, batchsize,
+        log_files=log_files_list
     )
     click.secho("IMPSY: training completed.", fg="green")

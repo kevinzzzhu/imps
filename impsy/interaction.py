@@ -11,7 +11,6 @@ from .utils import mdrnn_config, get_config_data, print_io
 import impsy.impsio as impsio
 from pathlib import Path
 import tomllib
-import tomli_w
 
 np.set_printoptions(precision=2)
 

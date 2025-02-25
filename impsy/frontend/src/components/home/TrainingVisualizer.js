@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Typography } from '@mui/material';
 import axios from 'axios';
 import { Audio } from 'react-loader-spinner';
 
@@ -94,11 +93,6 @@ const LogWindow = styled.div`
     &::-webkit-scrollbar {
         display: none;
     }
-`;
-
-const Title = styled(Typography)`
-    color: white;
-    margin: 20px;
 `;
 
 const TrainingVisualizer = ({ exitDirection = 'right' }) => {

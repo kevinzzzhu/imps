@@ -509,7 +509,8 @@ const LeftSide = ({ onTrainingStart }) => {
                 earlyStoppingEnabled: trainingConfig.earlyStoppingEnabled,
                 patience: trainingConfig.patience,
                 numEpochs: trainingConfig.numEpochs,
-                batchSize: trainingConfig.batchSize
+                batchSize: trainingConfig.batchSize,
+                logFiles: selectedLogs
             });
         } catch (error) {
             console.error('Failed to start training process:', error);

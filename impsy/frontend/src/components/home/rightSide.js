@@ -506,17 +506,6 @@ const RightSide = () => {
         }
     }, [selectedModel]);
 
-    // Handle subsequent project name changes
-    useEffect(() => {
-        if (configContent && projectName) {
-            const updatedConfig = configContent.replace(
-                /project_name = ".*"/,
-                `project_name = "${projectName}"`
-            );
-            setConfigContent(updatedConfig);
-        }
-    }, [projectName]);
-
     const handleModelClick = async (model) => {
         try {
             setModalOpen(true);
@@ -575,10 +564,16 @@ const RightSide = () => {
         try {
             setLoading(true);
             
-            // Save config file to project folder
+            // Update config content with project name before saving
+            const updatedConfigContent = configContent.replace(
+                /project_name = ".*"/,
+                `project_name = "${projectName}"`
+            );
+            
+            // Save config file to project folder with updated project name
             await axios.post('/api/new-project', {
                 projectName: projectName,
-                configContent: configContent
+                configContent: updatedConfigContent
             });
 
             // Load the model
@@ -762,7 +757,7 @@ const RightSide = () => {
                 // Update project name
                 .replace(
                     /project_name = ".*"/,
-                    `project_name = "${projectName}"`
+                    `project_name = ""`
                 );
             setConfigContent(updatedContent);
         } catch (error) {

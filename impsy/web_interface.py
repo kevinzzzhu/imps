@@ -18,6 +18,7 @@ import json
 import logging
 import tensorflow as tf
 from tensorboard.backend.event_processing import event_accumulator
+import re
 
 app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
 app.secret_key = "impsywebui"
@@ -307,11 +308,12 @@ def start_training():
         global training_process
         data = request.get_json()
         dimension = data.get('dimension')
-        model_size = data.get('modelSize', 's')  # Default to 's' if not provided
-        early_stopping = data.get('earlyStoppingEnabled', True)  # Default to True
-        patience = data.get('patience', 10)  # Default to 10
-        num_epochs = data.get('numEpochs', 100)  # Default to 100
-        batch_size = data.get('batchSize', 64)  # Default to 64
+        model_size = data.get('modelSize', 's')
+        early_stopping = data.get('earlyStoppingEnabled', True)
+        patience = data.get('patience', 10)
+        num_epochs = data.get('numEpochs', 100)
+        batch_size = data.get('batchSize', 64)
+        log_files = data.get('logFiles', [])
 
         def run_training_command():
             try:
@@ -323,7 +325,8 @@ def start_training():
                     "-S", f"datasets/training-dataset-{dimension}d-selected.npz",
                     "-M", model_size,
                     "-N", str(num_epochs),
-                    "-B", str(batch_size)
+                    "-B", str(batch_size),
+                    "--log-files", ",".join(log_files)
                 ]
 
                 # Add early stopping options if enabled
