@@ -4,7 +4,7 @@
 title = "Roland S-1 to S-1"
 owner = "Charles Martin"
 description = "A self-contained config for the Roland S-1"
-project_name = "testing2"
+project_name = "testing"
 
 # Basic config
 log_input = true
@@ -20,7 +20,7 @@ input_thru = false # sends inputs directly to outputs (e.g., if input interface 
 # Model configuration
 [model]
 dimension = 4
-file = "models/musicMDRNN-dim4-layers2-units64-mixtures5-scale10.keras"
+file = "models/20250218-12_23_19-musicMDRNN-dim4-layers2-units64-mixtures5-scale10.keras"
 size = "s" # Can be one of: xs, s, m, l, xl
 sigmatemp = 0.01
 pitemp = 1
@@ -70,17 +70,5 @@ client_port = 5002 # Port of the output device
 
 [log]
 file = [
-  "2025-02-24T17-01-24-4d-mdrnn.log",
-  "2025-02-24T17-25-53-4d-mdrnn.log",
-  "2025-02-24T17-29-00-4d-mdrnn.log",
-  "2025-02-24T17-30-50-4d-mdrnn.log",
-  "2025-02-24T17-32-34-4d-mdrnn.log",
-  "2025-02-24T17-34-17-4d-mdrnn.log",
-  "2025-02-24T17-35-53-4d-mdrnn.log",
-  "2025-02-24T17-38-51-4d-mdrnn.log",
-  "2025-02-24T17-40-57-4d-mdrnn.log",
-  "2025-02-24T17-43-12-4d-mdrnn.log",
-  "2025-02-24T17-46-38-4d-mdrnn.log",
-  "2025-02-24T17-47-05-4d-mdrnn.log",
-  "2025-02-24T17-48-50-4d-mdrnn.log"
+  "2025-02-25T15-53-24-4d-mdrnn.log"
 ]

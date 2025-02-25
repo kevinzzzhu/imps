@@ -498,11 +498,24 @@ const RightSide = () => {
             const modelBaseName = selectedModel.replace(/\.(keras|h5|tflite)$/, '');
             const newProjectName = `${timestamp}-${modelBaseName}`;
             
-            // Update project name and config
-            handleProjectNameChange(newProjectName);
+            // Update project name
+            setProjectName(newProjectName);
+            
+            // Fetch and update config
             fetchConfig();
         }
     }, [selectedModel]);
+
+    // Handle subsequent project name changes
+    useEffect(() => {
+        if (configContent && projectName) {
+            const updatedConfig = configContent.replace(
+                /project_name = ".*"/,
+                `project_name = "${projectName}"`
+            );
+            setConfigContent(updatedConfig);
+        }
+    }, [projectName]);
 
     const handleModelClick = async (model) => {
         try {
@@ -735,10 +748,22 @@ const RightSide = () => {
     const fetchConfig = async () => {
         try {
             const response = await axios.get('/api/config');
-            const updatedContent = response.data.config_content.replace(
-                /file = "models\/.*"/,
-                `file = "models/${selectedModel}"`
-            );
+            const updatedContent = response.data.config_content
+                // Update model file path
+                .replace(
+                    /file = "models\/.*"/,
+                    `file = "models/${selectedModel}"`
+                )
+                // Clear log files list
+                .replace(
+                    /\[log\][\s\S]*?file = \[([\s\S]*?)\]/,
+                    '[log]\nfile = []'
+                )
+                // Update project name
+                .replace(
+                    /project_name = ".*"/,
+                    `project_name = "${projectName}"`
+                );
             setConfigContent(updatedContent);
         } catch (error) {
             console.error('Failed to fetch config:', error);
@@ -774,17 +799,6 @@ const RightSide = () => {
         } catch (error) {
             alert('Failed to import model files: ' + (error.response?.data?.error || error.message));
         }
-    };
-
-    const handleProjectNameChange = (newName) => {
-        setProjectName(newName);
-        
-        // Update config content with new project name
-        const updatedConfig = configContent.replace(
-            /project_name = ".*"/,
-            `project_name = "${newName}"`
-        );
-        setConfigContent(updatedConfig);
     };
 
     return (
@@ -968,7 +982,7 @@ const RightSide = () => {
                             fullWidth
                             label="Project Name"
                             value={projectName}
-                            onChange={(e) => handleProjectNameChange(e.target.value)}
+                            onChange={(e) => setProjectName(e.target.value)}
                             margin="normal"
                             variant="outlined"
                             size="small"

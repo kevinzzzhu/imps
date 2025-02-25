@@ -10,8 +10,8 @@ import click
 from .utils import mdrnn_config, get_config_data, print_io
 import impsy.impsio as impsio
 from pathlib import Path
-import tomllib  # for reading TOML
-import tomli_w  # for writing TOML
+import tomllib
+import tomli_w
 
 np.set_printoptions(precision=2)
 
@@ -386,11 +386,11 @@ class InteractionServer(object):
                 with open(config_file, 'r') as f:
                     content = f.read()
                 
-                # Find ALL existing log files
+                # Find existing log files
                 import re
                 log_files = []
                 
-                # Find all file entries with better quote handling
+                # Find all file entries
                 all_file_matches = re.findall(r'file\s*=\s*\[(.*?)\]', content, re.DOTALL)
                 for match in all_file_matches:
                     # Split files and clean each entry
