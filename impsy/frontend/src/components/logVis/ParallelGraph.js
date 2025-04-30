@@ -119,8 +119,7 @@ const ParallelGraph = ({ data }) => {
         axes.append('text')
             .attr('y', -9)
             .attr('text-anchor', 'middle')
-            .style('fill', 'black')
-            .text(d => `Parameter ${d + 1}`);
+            .style('fill', 'black');
 
         // Add brushing
         axes.append('g')

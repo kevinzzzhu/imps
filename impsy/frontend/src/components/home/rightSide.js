@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, Modal, Button, Box, TextField } from '@mui/material';
+import { Typography, Modal, Button, Box, TextField, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
 import {
     Chart as ChartJS,
@@ -58,7 +58,7 @@ const ModelList = styled.div`
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
     transition: width 0.3s ease-out;
-    z-index: 2;
+    z-index: 10;
 `;
 
 const TitleContainer = styled.div`
@@ -66,6 +66,7 @@ const TitleContainer = styled.div`
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+    position: relative;
 `;
 
 const StyledTypography = styled(Typography)`
@@ -100,7 +101,7 @@ const FilterButton = styled.button`
 
 const FilterMenu = styled.div`
     position: absolute;
-    top: 20px;
+    top: 80px;
     right: ${props => props.isExtended ? '130px' : '-150px'};
     left: ${props => props.isExtended ? 'auto' : 'auto'};
     background: rgba(44, 62, 80, 0.95);
@@ -110,13 +111,15 @@ const FilterMenu = styled.div`
     display: flex;
     flex-direction: column;
     gap: 10px;
-    z-index: 9999;
+    z-index: 200000;
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     
     /* Animation properties */
     opacity: ${props => props.show ? 1 : 0};
-    transform: translateX(${props => props.show ? '0' : (props.isExtended ? '-10px' : '10px')});
+    transform: ${props => props.show 
+        ? 'translateY(-50%)' 
+        : `translateY(-50%) translateX(${props.isExtended ? '-10px' : '10px'})`};
     visibility: ${props => props.show ? 'visible' : 'hidden'};
     transition: all 0.3s ease-in-out;
     transform-origin: ${props => props.isExtended ? 'left' : 'right'};
@@ -421,6 +424,36 @@ const ConfigTextArea = styled.textarea`
     }
 `;
 
+const DeleteButton = styled.button`
+    background: transparent;
+    color: #aaa;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    margin-left: auto;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+
+    &:hover {
+        color: #e74c3c;
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.1);
+    }
+`;
+
+const impsyModes = ["callresponse", "polyphony", "battle", "useronly"];
+
+// Helper to extract current mode from configContent
+function getCurrentMode(configContent) {
+    const match = configContent.match(/mode\s*=\s*"(callresponse|polyphony|battle|useronly)"/);
+    return match ? match[1] : "callresponse";
+}
+
 const RightSide = () => {
     const navigate = useNavigate();
     const [models, setModels] = useState([]);
@@ -452,6 +485,7 @@ const RightSide = () => {
     const chartRef = useRef(null);
     const [configContent, setConfigContent] = useState('');
     const [projectName, setProjectName] = useState('');
+    const [mode, setMode] = useState("callresponse");
 
     useEffect(() => {
         const fetchModels = async () => {
@@ -505,6 +539,12 @@ const RightSide = () => {
             fetchConfig();
         }
     }, [selectedModel]);
+
+    useEffect(() => {
+        if (configContent) {
+            setMode(getCurrentMode(configContent));
+        }
+    }, [configContent]);
 
     const handleModelClick = async (model) => {
         try {
@@ -565,7 +605,7 @@ const RightSide = () => {
             setLoading(true);
             
             // Update config content with project name before saving
-            const updatedConfigContent = configContent.replace(
+            let updatedConfigContent = configContent.replace(
                 /project_name = ".*"/,
                 `project_name = "${projectName}"`
             );
@@ -576,9 +616,10 @@ const RightSide = () => {
                 configContent: updatedConfigContent
             });
 
-            // Load the model
+            // Load the model with the selected model file
             await axios.post('/api/load-model', {
-                projectName: projectName
+                projectName: projectName,
+                modelFile: selectedModel  // Pass the selected model file to the backend
             });
             
             // Navigate to project page with project name in URL
@@ -796,6 +837,43 @@ const RightSide = () => {
         }
     };
 
+    const handleDeleteModel = async (model, event) => {
+        event.stopPropagation(); // Prevent model selection when clicking delete
+        
+        if (window.confirm(`Are you sure you want to delete ${model}?`)) {
+            try {
+                const response = await axios.delete(`/api/models/${model}`);
+                if (response.data.success) {
+                    // If the deleted model was selected, clear the selection
+                    if (selectedModel === model) {
+                        setSelectedModel(null);
+                        setSelectedDimension(null);
+                        setConfigContent('');
+                    }
+                    
+                    // Refresh the models list
+                    const modelsResponse = await axios.get('/api/models');
+                    setModels(modelsResponse.data || []);
+                    
+                    // Show success message
+                    alert(`Model ${model} deleted successfully`);
+                } else {
+                    alert(`Error: ${response.data.error}`);
+                }
+            } catch (error) {
+                console.error('Failed to delete model file:', error);
+                alert(`Failed to delete model file: ${error.response?.data?.error || error.message}`);
+            }
+        }
+    };
+
+    const handleModeChange = (event) => {
+        const newMode = event.target.value;
+        setMode(newMode);
+        // Replace mode in configContent
+        setConfigContent(prev => prev.replace(/mode\s*=\s*"(callresponse|polyphony|battle|useronly)"/, `mode = "${newMode}"`));
+    };
+
     return (
         <Container>
             <ModelList isExtended={isExtended}>
@@ -909,7 +987,9 @@ const RightSide = () => {
                                     onClick={() => handleModelClick(model)}
                                     style={{ 
                                         cursor: 'pointer',
-                                        opacity: isDisabled ? 0.5 : 1 
+                                        opacity: isDisabled ? 0.5 : 1,
+                                        display: 'flex',
+                                        alignItems: 'center'
                                     }}
                                 >
                                     <input
@@ -923,7 +1003,13 @@ const RightSide = () => {
                                         disabled={isDisabled}
                                         style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
                                     />
-                                    {model}
+                                    <span style={{ flex: 1 }}>{model}</span>
+                                    <DeleteButton 
+                                        onClick={(e) => handleDeleteModel(model, e)}
+                                        title="Delete model file"
+                                    >
+                                        ×
+                                    </DeleteButton>
                                 </ModelItem>
                             );
                         })
@@ -999,6 +1085,22 @@ const RightSide = () => {
                                 },
                             }}
                         />
+                        {/* IMPSY Mode Dropdown at top right of config panel */}
+                        <div style={{ marginLeft: 'auto', marginTop: 0 }}>
+                            <FormControl size="small" variant="outlined" sx={{ minWidth: 180, background: 'rgba(44,62,80,0.8)', borderRadius: 1 }}>
+                                <InputLabel sx={{ color: 'white' }}>IMPSY Mode</InputLabel>
+                                <Select
+                                    label="IMPSY Mode"
+                                    value={mode}
+                                    onChange={handleModeChange}
+                                    sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' } }}
+                                >
+                                    {impsyModes.map(opt => (
+                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </div>
                     </ConfigHeader>
                     <Box sx={{
                         flex: 1,

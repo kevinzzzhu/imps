@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HashRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { IconButton } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import TogglableMenu from './components/Menu';
+import MIDIDeviceStatus from './components/MIDIDeviceStatus';
 import Datasets from './Datasets';
 import Home from './Home';
 import Configs from './Config';
@@ -66,6 +67,7 @@ const PageContainer = styled.main`
 function App() {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isModelRunning, setIsModelRunning] = useState(false);
   let closeTimeout = null;
 
   const toggleMenu = () => {
@@ -79,6 +81,11 @@ function App() {
     closeTimeout = setTimeout(() => {
       setMenuOpen(false);
     }, 1000);  // Delay closing by 1 second
+  };
+
+  // Function for Project component to call when model status changes
+  const handleModelRunningChange = (running) => {
+    setIsModelRunning(running);
   };
 
   const GlobalStyle = createGlobalStyle`
@@ -116,9 +123,10 @@ function App() {
             <Route path="/faq" element={<FAQ />} />
             <Route path="/about" element={<About />} />
             <Route path="/feedback" element={<FeedbackForm />} />
-            <Route path="/project/:projectName" element={<Project />} />
+            <Route path="/project/:projectName" element={<Project onModelRunningChange={handleModelRunningChange} />} />
           </Routes>
         </PageContainer>
+        <MIDIDeviceStatus isHidden={isModelRunning} />
       </div>
     </Router>
   );

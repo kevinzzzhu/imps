@@ -11,7 +11,7 @@ import { ReactComponent as FeedbackIcon } from '../assets/icons/feedback.svg';
 const MenuContainer = styled.div`
     height: 100vh;
     width: 150px;
-    background-color: #F3F3F9;
+    background-color: rgba(107, 129, 152, 0.8);
     position: fixed;
     top: 0;
     left: 0;
@@ -35,14 +35,14 @@ const MenuItem = styled.div`
     align-items: center;
     justify-content: center;
     border-radius: 20px;
-    background-color: ${props => props.bgColor || '#E9E4F0'};
+    background-color: ${props => props.primary ? 'rgba(52, 152, 219, 0.7)' : 'rgba(255, 255, 255, 0.1)'};
     color: #333;
     font-size: 14px;
     cursor: pointer;
     transition: background-color 0.3s ease;
 
     &:hover {
-        background-color: ${props => props.hoverColor || '#CFC4D6'};
+        background-color: ${props => props.hoverColor || 'rgba(133, 125, 222, 0.7)'};
     }
 
     svg {
@@ -139,7 +139,7 @@ export const TogglableMenu = ({ isOpen, onClose }) => {
         <MenuContainer isOpen={isOpen} onMouseLeave={onClose}>
             <MenuItem 
                 bgColor="#FFD9E4" 
-                hoverColor="#FFB3D1" 
+                hoverColor="rgba(179, 80, 80, 0.7)" 
                 padding="28px 12px" 
                 margin="30px 0" 
                 onClick={() => handleNavigation('/')}

@@ -1,11 +1,11 @@
 # The configuration file for IMPSY: Interactive Musical Prediction System
 
-# Metadata about this configuration1
-title = "Roland S-1 to S-1"
-owner = "Charles Martin"
-description = "A self-contained config for the Roland S-1"
+# Metadata about this configuration
+title = "Arturia MiniLab 3 Configuration"
+owner = "Kevin Zhu"
+description = "Configuration for the Arturia MiniLab 3"
 # Project name will be updated automatically when a new model is loaded
-project_name = "20250225-055652-20250225-16_43_49-musicMDRNN-dim4-layers2-units64-mixtures5-scale10"
+project_name = "20250430-130111-20250428-22_42_07-musicMDRNN-dim15-layers2-units64-mixtures5-scale10"
 
 # Basic config
 log_input = true
@@ -20,41 +20,48 @@ input_thru = false # sends inputs directly to outputs (e.g., if input interface 
 
 # Model configuration
 [model]
-dimension = 4
-file = "models/20250225-16_43_49-musicMDRNN-dim4-layers2-units64-mixtures5-scale10.keras"
+dimension = 15 
+file = "models/20250428-22_42_07-musicMDRNN-dim15-layers2-units64-mixtures5-scale10.keras"
 size = "s" # Can be one of: xs, s, m, l, xl
 sigmatemp = 0.01
 pitemp = 1
 timescale = 1
 
 # MIDI Mapping
-# MIDI Mapping
 [midi]
-in_device = "S-1"
-out_device = "S-1"
+in_device = "Minilab3 MIDI"
+out_device = "IAC Driver Bus 1"
 input = [
-  # ["note_on", 3], # notes input
-  ["control_change", 3, 3], # lfo rate
-  ["control_change", 3, 13], # osc lfo
-  ["control_change", 3, 19], # osc square level
-  # ["control_change", 3, 20], # osc tri level
-  ["control_change", 3, 21], # osc sub level
-  ["control_change", 3, 23], # osc noise level
-  ["control_change", 3, 24], # filter env knob
-  ["control_change", 3, 25], # filter lvo knob
-  ["control_change", 3, 71], # filter reso knob
+  ["note_on", 1], # notes input
+  ["control_change", 1, 1],  # modulation wheel
+  ["control_change", 1, 16], # controller 1
+  ["control_change", 1, 17], # controller 2
+  ["control_change", 1, 18], # controller 3
+  ["control_change", 1, 19], # controller 4
+  ["control_change", 1, 71], # controller 5
+  ["control_change", 1, 74], # controller 6
+  ["control_change", 1, 76], # controller 7
+  ["control_change", 1, 77], # controller 8
+  ["control_change", 1, 82], # controller 9
+  ["control_change", 1, 83], # controller 10
+  ["control_change", 1, 85], # controller 11
+  ["control_change", 1, 93]  # controller 12
 ]
 output = [
-  ["note_on", 3], # notes input
-  ["control_change", 3, 3], # lfo rate
-  ["control_change", 3, 13], # osc lfo
-  ["control_change", 3, 19], # osc square level
-  # ["control_change", 3, 20], # osc tri level
-  ["control_change", 3, 21], # osc sub level
-  ["control_change", 3, 23], # osc noise level
-  ["control_change", 3, 24], # filter env knob
-  ["control_change", 3, 25], # filter lvo knob
-  ["control_change", 3, 71], # filter reso knob
+  ["note_on", 1], # notes output
+  ["control_change", 1, 1],  # modulation wheel
+  ["control_change", 1, 16], # controller 1
+  ["control_change", 1, 17], # controller 2
+  ["control_change", 1, 18], # controller 3
+  ["control_change", 1, 19], # controller 4
+  ["control_change", 1, 71], # controller 5
+  ["control_change", 1, 74], # controller 6
+  ["control_change", 1, 76], # controller 7
+  ["control_change", 1, 77], # controller 8
+  ["control_change", 1, 82], # controller 9
+  ["control_change", 1, 83], # controller 10
+  ["control_change", 1, 85], # controller 11
+  ["control_change", 1, 93]  # controller 12
 ]
 
 [osc] # Changed from localhost to 127.0.0.1
@@ -71,5 +78,28 @@ client_port = 5002 # Port of the output device
 
 [log]
 file = [
-  "2025-02-25T17-00-08-4d-mdrnn.log"
+  "2025-04-30T23-01-49-15d-mdrnn.log",
+  "2025-05-01T03-17-56-15d-mdrnn.log",
+  "2025-05-01T03-23-53-15d-mdrnn.log",
+  "2025-05-01T03-23-57-15d-mdrnn.log",
+  "2025-05-01T03-24-10-15d-mdrnn.log",
+  "2025-05-01T03-26-18-15d-mdrnn.log",
+  "2025-05-01T03-26-21-15d-mdrnn.log",
+  "2025-05-01T03-26-55-15d-mdrnn.log",
+  "2025-05-01T03-29-25-15d-mdrnn.log",
+  "2025-05-01T03-32-33-15d-mdrnn.log",
+  "2025-05-01T03-42-04-15d-mdrnn.log",
+  "2025-05-01T03-42-18-15d-mdrnn.log",
+  "2025-05-01T04-41-34-15d-mdrnn.log",
+  "2025-05-01T04-42-15-15d-mdrnn.log",
+  "2025-05-01T04-42-22-15d-mdrnn.log",
+  "2025-05-01T04-49-41-15d-mdrnn.log",
+  "2025-05-01T04-50-06-15d-mdrnn.log",
+  "2025-05-01T04-50-12-15d-mdrnn.log",
+  "2025-05-01T05-04-05-15d-mdrnn.log",
+  "2025-05-01T05-09-01-15d-mdrnn.log",
+  "2025-05-01T05-10-16-15d-mdrnn.log",
+  "2025-05-01T05-31-19-15d-mdrnn.log",
+  "2025-05-01T05-31-39-15d-mdrnn.log",
+  "2025-05-01T05-36-01-15d-mdrnn.log"
 ]

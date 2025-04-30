@@ -4,18 +4,17 @@ import axios from 'axios';
 import { Typography, List, ListItem, Box, Modal, Paper, Button, Select, MenuItem, FormControl, InputLabel, Switch, FormControlLabel, TextField } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
 import TimeSeriesGraph from '../logVis/TimeSeriesGraph';
-import DelaunayGraph from '../logVis/DelaunayGraph';
-import SplomGraph from '../logVis/SplomGraph';
+// import SplomGraph from '../logVis/SplomGraph';
 import ParallelGraph from '../logVis/ParallelGraph';
-import ViolinGraph from '../logVis/ViolinGraph';
-import OscillationGraph from '../logVis/OscillationGraph';
+// import ViolinGraph from '../logVis/ViolinGraph';
+// import OscillationGraph from '../logVis/OscillationGraph';
 import AreaGraph from '../logVis/AreaGraph';
-import RadarGraph from '../logVis/RadarGraph';
-import FunnelGraph from '../logVis/FunnelGraph';
-import ScatterGraph from '../logVis/ScatterGraph';
-import LineGraph from '../logVis/LineGraph';
-import HeatmapGraph from '../logVis/HeatmapGraph';
-import StackedGraph from '../logVis/StackedGraph';
+// import RadarGraph from '../logVis/RadarGraph';
+// import FunnelGraph from '../logVis/FunnelGraph';
+// import ScatterGraph from '../logVis/ScatterGraph';
+// import LineGraph from '../logVis/LineGraph';
+// import HeatmapGraph from '../logVis/HeatmapGraph';
+// import StackedGraph from '../logVis/StackedGraph';
 
 const Container = styled.div`
     display: flex;
@@ -46,6 +45,7 @@ const LogList = styled.div`
     backdrop-filter: blur(8px);
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 10;
 `;
 
 const LogListContent = styled.div`
@@ -99,6 +99,7 @@ const MainContent = styled.div`
     transform: translateX(${props => props.show ? '0' : '-20px'});
     transition: all 0.3s ease;
     visibility: ${props => props.show ? 'visible' : 'hidden'};
+    z-index: 5;
 `;
 
 const LogContent = styled.div`
@@ -143,6 +144,28 @@ const LogItem = styled.div`
     }
 `;
 
+const DeleteButton = styled.button`
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+    cursor: pointer;
+    margin-left: auto;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+
+    &:hover {
+        color: #e74c3c;
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.1);
+    }
+`;
+
 const StyledTypography = styled(Typography)`
     color: white !important;
     margin-bottom: 10px !important;
@@ -153,6 +176,7 @@ const TitleContainer = styled.div`
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+    position: relative;
 `;
 
 const FilterButton = styled.button`
@@ -182,7 +206,7 @@ const FilterButton = styled.button`
 
 const FilterMenu = styled.div`
     position: absolute;
-    top: 20px;
+    top: 80px;
     right: -150px;
     background: rgba(44, 62, 80, 0.95);
     border-radius: 4px;
@@ -191,13 +215,13 @@ const FilterMenu = styled.div`
     display: flex;
     flex-direction: column;
     gap: 10px;
-    z-index: 9999;
+    z-index: 200000;
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     
     /* Animation properties */
     opacity: ${props => props.show ? 1 : 0};
-    transform: translateX(${props => props.show ? '0' : '-10px'});
+    transform: ${props => props.show ? 'translateY(-50%)' : 'translateY(-50%) translateX(-10px)'};
     visibility: ${props => props.show ? 'visible' : 'hidden'};
     transition: all 0.3s ease-in-out;
     transform-origin: top right;
@@ -291,7 +315,7 @@ const LeftSide = ({ onTrainingStart }) => {
     const [logContent, setLogContent] = useState('');
     const [logData, setLogData] = useState(null);
     const [selectedLogs, setSelectedLogs] = useState([]);
-    const [selectedView, setSelectedView] = useState('basic');
+    const [selectedView, setSelectedView] = useState('TimeSeries');
     const [selectedDimension, setSelectedDimension] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
@@ -546,6 +570,38 @@ const LeftSide = ({ onTrainingStart }) => {
         }
     };
 
+    // Add this new function to handle log file deletion
+    const handleDeleteLog = async (filename, event) => {
+        event.stopPropagation(); // Prevent log selection when clicking delete
+        
+        if (window.confirm(`Are you sure you want to delete ${filename}?`)) {
+            try {
+                const response = await axios.delete(`/api/logs/${filename}`);
+                if (response.data.success) {
+                    // Remove from selected logs if it was selected
+                    if (selectedLogs.includes(filename)) {
+                        setSelectedLogs(prev => prev.filter(f => f !== filename));
+                    }
+                    
+                    // Clear selected log if it was the one being viewed
+                    if (selectedLog === filename) {
+                        setSelectedLog(null);
+                        setLogContent('');
+                        setLogData(null);
+                    }
+                    
+                    // Refresh the log files list
+                    fetchLogFiles();
+                } else {
+                    alert(`Error: ${response.data.error}`);
+                }
+            } catch (error) {
+                console.error('Failed to delete log file:', error);
+                alert(`Failed to delete log file: ${error.message}`);
+            }
+        }
+    };
+
     return (
         <Container>
             <LogList>
@@ -652,6 +708,12 @@ const LeftSide = ({ onTrainingStart }) => {
                                             style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
                                         />
                                         {file}
+                                        <DeleteButton 
+                                            onClick={(e) => handleDeleteLog(file, e)}
+                                            title="Delete log file"
+                                        >
+                                            <span>×</span>
+                                        </DeleteButton>
                                     </LogItem>
                                 );
                             })}
@@ -700,61 +762,55 @@ const LeftSide = ({ onTrainingStart }) => {
 
                         {/* View selector buttons */}
                         <Box sx={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                            <Button 
-                                variant={selectedView === 'basic' ? 'contained' : 'outlined'}
-                                onClick={() => setSelectedView('basic')}
-                            >
-                                Basic Time Series View
-                            </Button>
                             <Button
-                                variant={selectedView === 'delaunay' ? 'contained' : 'outlined'} 
-                                onClick={() => setSelectedView('delaunay')}
+                                variant={selectedView === 'TimeSeries' ? 'contained' : 'outlined'} 
+                                onClick={() => setSelectedView('TimeSeries')}
                             >
-                                Delaunay View
+                                TimeSeries View
                             </Button>
-                            <Button
+                            {/* <Button
                                 variant={selectedView === 'splom' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('splom')}
                             >
                                 Splom View
-                            </Button>
+                            </Button> */}
                             <Button
                                 variant={selectedView === 'parallel' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('parallel')}
                             >
                                 Parallel View
                             </Button>
-                            <Button
+                            {/* <Button
                                 variant={selectedView === 'violin' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('violin')}
                             >
                                 Violin View
-                            </Button>
-                            <Button
+                            </Button> */}
+                            {/* <Button
                                 variant={selectedView === 'oscillation' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('oscillation')}
                             >
                                 Oscillation View
-                            </Button>
-                            <Button
+                            </Button> */}
+                            {/* <Button
                                 variant={selectedView === 'radar' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('radar')}
                             >
                                 Radar View
-                            </Button>
+                            </Button> */}
                             <Button
                                 variant={selectedView === 'area' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('area')}
                             >
                                 Area View
                             </Button>
-                            <Button
+                            {/* <Button
                                 variant={selectedView === 'funnel' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('funnel')}
                             >
                                 Funnel View
-                            </Button>
-                            <Button
+                            </Button> */}
+                            {/* <Button
                                 variant={selectedView === 'scatter' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('scatter')}
                             >
@@ -765,8 +821,8 @@ const LeftSide = ({ onTrainingStart }) => {
                                 onClick={() => setSelectedView('line')}
                             >
                                 Line View
-                            </Button>
-                            <Button
+                            </Button> */}
+                            {/* <Button
                                 variant={selectedView === 'heatmap' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('heatmap')}
                             >
@@ -777,35 +833,27 @@ const LeftSide = ({ onTrainingStart }) => {
                                 onClick={() => setSelectedView('stacked')}
                             >
                                 Stacked View
-                            </Button>
+                            </Button> */}
                         </Box>
 
                         {/* Visualization views */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            {selectedView === 'basic' && (
+                            {selectedView === 'TimeSeries' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
-                                    Basic Time Series View
+                                        TimeSeries View
                                     </Typography>
                                     {logData && <TimeSeriesGraph data={logData} />}
                                 </Box>
                             )}
-                            {selectedView === 'delaunay' && (
-                                <Box>
-                                    <Typography variant="subtitle1" style={{ color: 'white' }}>
-                                        Delaunay View
-                                    </Typography>
-                                    {logData && <DelaunayGraph data={logData} />}
-                                </Box>
-                            )}
-                            {selectedView === 'splom' && (
+                            {/* {selectedView === 'splom' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
                                         Splom View
                                     </Typography>
                                     {logData && <SplomGraph data={logData} />}
                                 </Box>
-                            )}
+                            )} */}
                             {selectedView === 'parallel' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
@@ -814,30 +862,30 @@ const LeftSide = ({ onTrainingStart }) => {
                                     {logData && <ParallelGraph data={logData} />}
                                 </Box>
                             )}
-                            {selectedView === 'violin' && (
+                            {/* {selectedView === 'violin' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
                                         Violin View
                                     </Typography>
                                     {logData && <ViolinGraph data={logData} />}
                                 </Box>
-                            )}
-                            {selectedView === 'oscillation' && (
+                            )} */}
+                            {/* {selectedView === 'oscillation' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
                                         Oscillation View
                                     </Typography>
                                     {logData && <OscillationGraph data={logData} />}
                                 </Box>
-                            )}
-                            {selectedView === 'radar' && (
+                            )} */}
+                            {/* {selectedView === 'radar' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
                                         Radar View
                                     </Typography>
                                     {logData && <RadarGraph data={logData} />}
                                 </Box>
-                            )}
+                            )} */}
                             {selectedView === 'area' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
@@ -846,15 +894,15 @@ const LeftSide = ({ onTrainingStart }) => {
                                     {logData && <AreaGraph data={logData} />}
                                 </Box>
                             )}
-                            {selectedView === 'funnel' && (
+                            {/* {selectedView === 'funnel' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
                                         Funnel View
                                     </Typography>
                                     {logData && <FunnelGraph data={logData} />}
                                 </Box>
-                            )}
-                            {selectedView === 'scatter' && (
+                            )} */}
+                            {/* {selectedView === 'scatter' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
                                         Scatter View
@@ -869,8 +917,8 @@ const LeftSide = ({ onTrainingStart }) => {
                                     </Typography>
                                     {logData && <LineGraph data={logData} />}
                                 </Box>
-                            )}
-                            {selectedView === 'heatmap' && (
+                            )} */}
+                            {/* {selectedView === 'heatmap' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
                                         Heatmap View
@@ -885,7 +933,7 @@ const LeftSide = ({ onTrainingStart }) => {
                                     </Typography>
                                     {logData && <StackedGraph data={logData} />}
                                 </Box>
-                            )}
+                            )} */}
                         </Box>
 
                         {/* Raw data */}
@@ -900,7 +948,10 @@ const LeftSide = ({ onTrainingStart }) => {
                                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                                 padding: '15px',
                                 borderRadius: '4px',
-                                color: 'white'
+                                color: 'white',
+                                overflowX: 'auto',
+                                maxWidth: '100%',
+                                wordBreak: 'break-all'
                             }}>
                                 {logContent}
                             </Box>

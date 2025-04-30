@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import LeftSide from './components/home/LeftSide';
 import RightSide from './components/home/RightSide';
 import ipadEnsemble from './assets/images/ipad-ensemble.jpg';
@@ -220,6 +220,31 @@ const NavigationButton = styled.button`
     }
 `;
 
+const Banner = styled.div`
+    position: fixed;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(44,62,80,0.95);
+    color: white;
+    padding: 14px 32px;
+    border-radius: 8px;
+    font-size: 1rem;
+    z-index: 2000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+`;
+
+const BannerLink = styled.a`
+    color: #4FC3F7;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: bold;
+    &:hover { color: #81D4FA; }
+`;
+
 function Home() {
     const [selectedSide, setSelectedSide] = useState(null);
     const [isHoveredLeft, setIsHoveredLeft] = useState(false);
@@ -227,6 +252,7 @@ function Home() {
     const [showComponent, setShowComponent] = useState(false);
     const [showTrainingVisualizer, setShowTrainingVisualizer] = useState(false);
     const location = useLocation();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (location.state?.reset) {
@@ -282,8 +308,49 @@ function Home() {
         }, 400);
     };
 
+    // Handler for the banner link
+    const handleUserOnlyClick = async (e) => {
+        e.preventDefault();
+        // Generate a project name
+        const timestamp = new Date().toISOString().slice(0,19).replace(/[-:]/g, '').replace('T', '-');
+        const projectName = `${timestamp}-useronly`;
+        // Fetch current config, set mode to useronly, and create project
+        try {
+            const response = await fetch('/api/config');
+            let config = await response.json();
+            let configContent = config.config_content;
+            // Replace project_name
+            configContent = configContent.replace(/project_name\s*=\s*".*"/, `project_name = "${projectName}"`);
+            // Replace mode in config
+            configContent = configContent.replace(/mode\s*=\s*"(callresponse|polyphony|battle|useronly)"/, 'mode = "useronly"');
+            // Set model file to empty string
+            configContent = configContent.replace(/file\s*=\s*"models\/.*"/, 'file = ""');
+            // Clear log file list
+            configContent = configContent.replace(/\[log\][\s\S]*?file\s*=\s*\[[^\]]*\]/, '[log]\nfile = []');
+            // Save config and create project
+            await fetch('/api/new-project', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectName, configContent })
+            });
+            // Navigate to project page
+            navigate(`/project/${projectName}`);
+        } catch (err) {
+            alert('Failed to create user-only project: ' + err.message);
+        }
+    };
+
     return (
         <GlobalStyle>
+            {/* Banner for first time users */}
+            {selectedSide === null && !showTrainingVisualizer && (
+                <Banner>
+                    First time?{' '}
+                    <BannerLink href="#" onClick={handleUserOnlyClick}>
+                        Try user-only to generate your first model!
+                    </BannerLink>
+                </Banner>
+            )}
             <ReturnButton 
                 show={selectedSide !== null}
                 onClick={handleReturn}

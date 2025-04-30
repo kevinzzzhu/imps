@@ -19,6 +19,7 @@ import logging
 import tensorflow as tf
 from tensorboard.backend.event_processing import event_accumulator
 import re
+import mido
 
 app = Flask(__name__, static_folder='./frontend/build', static_url_path='')
 app.secret_key = "impsywebui"
@@ -282,6 +283,10 @@ def create_dataset():
         dataset_name = f"training-dataset-{dimension}d-selected.npz"
         dataset_file = Path("datasets") / dataset_name
         
+        print(f"Creating dataset from logs: {log_files}")
+        print(f"Detected dimension: {dimension}")
+        print(f"Dataset output file: {dataset_file}")
+        
         # Generate dataset from selected files
         raw_perfs, stats = generate_dataset_from_files(log_files, dimension)
         np.savez_compressed(dataset_file, perfs=raw_perfs)
@@ -299,7 +304,11 @@ def create_dataset():
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        error_traceback = traceback.format_exc()
+        error_message = f"Error creating dataset: {str(e)}\n{error_traceback}"
+        print(error_message)
+        return jsonify({"error": str(e), "traceback": error_traceback}), 500
 
 # Start training
 @app.route('/api/start-training', methods=['POST'])
@@ -676,6 +685,7 @@ def load_model():
     try:
         data = request.json
         project_name = data.get('projectName', '')
+        model_file = data.get('modelFile', '')
 
         if not project_name:
             return jsonify({'error': 'Project name is required'}), 400
@@ -699,9 +709,32 @@ def load_model():
 
         # Read project config and update global config
         try:
-            with open(project_file, 'r') as src, open('config.toml', 'w') as dst:
+            with open(project_file, 'r') as src:
                 config_content = src.read()
+                
+            # If model_file is provided, update the file field in the config
+            if model_file:
+                import re
+                # First, make the model file path relative to models/ directory
+                if not model_file.startswith('models/'):
+                    model_file = f"models/{model_file}"
+                
+                # Create a more robust regex pattern to match the model file in the config
+                # This handles both quoted and unquoted paths, as well as empty strings
+                model_file_pattern = r'(\[model\][^\[]*?file\s*=\s*)(?:"[^"]*"|\'[^\']*\'|[^\s\n\r\[\]]+)'
+                
+                # Update the file path in the config content
+                config_content = re.sub(model_file_pattern, r'\1"' + model_file + '"', 
+                                        config_content, flags=re.DOTALL)
+            
+            # Write updated config to global config
+            with open('config.toml', 'w') as dst:
                 dst.write(config_content)
+                
+            # Update project file with the same changes
+            with open(project_file, 'w') as proj_file:
+                proj_file.write(config_content)
+                
         except Exception as e:
             return jsonify({'error': f'Error updating configuration: {str(e)}'}), 500
 
@@ -724,8 +757,49 @@ def run_model():
             ["poetry", "run", "./start_impsy.py", "run"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            universal_newlines=True
+            universal_newlines=True,
+            bufsize=1
         )
+        
+        # Start a thread to monitor the process
+        def monitor_process():
+            output_lines = []
+            error_detected = False
+            
+            # Read output for error detection
+            while model_process and model_process.poll() is None:
+                try:
+                    line = model_process.stdout.readline()
+                    if not line:
+                        break
+                        
+                    output_lines.append(line.strip())
+                    # Keep only the last 50 lines
+                    if len(output_lines) > 50:
+                        output_lines.pop(0)
+                        
+                    # Check for error patterns
+                    if "error" in line.lower() or "exception" in line.lower():
+                        error_detected = True
+                        
+                except Exception as e:
+                    print(f"Error reading model process output: {e}")
+                    break
+            
+            # Process terminated
+            return_code = model_process.poll()
+            print(f"Model process terminated with return code: {return_code}")
+            
+            # If process terminated unexpectedly and we have output, 
+            # we can send it to the client via a future status endpoint
+            if return_code != 0:
+                error_message = "\n".join(output_lines[-10:]) if output_lines else "Unknown error"
+                print(f"Model process failed: {error_message}")
+        
+        # Start monitoring thread
+        monitor_thread = threading.Thread(target=monitor_process)
+        monitor_thread.daemon = True
+        monitor_thread.start()
         
         # Check if the process started successfully
         if model_process.poll() is None:  # Process is running
@@ -745,6 +819,53 @@ def run_model():
         return jsonify({
             "success": False,
             "error": str(e)
+        }), 500
+
+# Add model status endpoint to check if model is still running
+@app.route('/api/model-status', methods=['GET'])
+def model_status():
+    try:
+        global model_process
+        
+        if model_process is None:
+            return jsonify({
+                "running": False,
+                "status": "not_started",
+                "message": "Model not running"
+            })
+            
+        # Check if process is still running
+        if model_process.poll() is None:
+            return jsonify({
+                "running": True,
+                "status": "running",
+                "pid": model_process.pid,
+                "message": "Model is running"
+            })
+        else:
+            # Process has terminated
+            return_code = model_process.poll()
+            status = "stopped" if return_code == 0 else "error"
+            
+            # Get any output from the process if available
+            try:
+                remaining_output, _ = model_process.communicate(timeout=0.1)
+                error_message = remaining_output.strip() if remaining_output else f"Process terminated with return code {return_code}"
+            except:
+                error_message = f"Process terminated with return code {return_code}"
+                
+            return jsonify({
+                "running": False,
+                "status": status,
+                "message": error_message,
+                "return_code": return_code
+            })
+            
+    except Exception as e:
+        return jsonify({
+            "running": False,
+            "status": "error",
+            "message": f"Error checking model status: {str(e)}"
         }), 500
 
 @app.route('/api/stop-model', methods=['POST'])
@@ -856,12 +977,103 @@ def get_model_data(model_dir):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Delete a log file
+@app.route('/api/logs/<filename>', methods=['DELETE'])
+def delete_log_file(filename):
+    try:
+        # Ensure the filename is safe
+        safe_filename = secure_filename(filename)
+        log_path = os.path.join(LOGS_DIR, safe_filename)
+        
+        # Check if file exists
+        if not os.path.exists(log_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+            
+        # Check if path is within LOGS_DIR (security check)
+        if not os.path.commonpath([os.path.abspath(log_path), str(LOGS_DIR)]) == str(LOGS_DIR):
+            return jsonify({'success': False, 'error': 'Invalid file path'}), 403
+            
+        # Delete the file
+        os.remove(log_path)
+        return jsonify({'success': True, 'message': f'File {filename} deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Delete a model file
+@app.route('/api/models/<filename>', methods=['DELETE'])
+def delete_model_file(filename):
+    try:
+        # Ensure the filename is safe
+        safe_filename = secure_filename(filename)
+        model_path = os.path.join(MODEL_DIR, safe_filename)
+        
+        # Check if file exists
+        if not os.path.exists(model_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+            
+        # Check if path is within MODEL_DIR (security check)
+        if not os.path.commonpath([os.path.abspath(model_path), str(MODEL_DIR)]) == str(MODEL_DIR):
+            return jsonify({'success': False, 'error': 'Invalid file path'}), 403
+            
+        # Delete the file
+        os.remove(model_path)
+        return jsonify({'success': True, 'message': f'Model {filename} deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @click.command()
 @click.option('--host', default=DEFAULT_HOST, help='The host to bind to.')
 @click.option('--port', default=DEFAULT_PORT, help='The port to bind to.')
 @click.option('--debug', is_flag=True, help='Run in debug mode.')
 @click.option('--dev', is_flag=True, help='Run in development mode with React (Hot Reload)')
 def webui(host, port, debug, dev):
+    banner = """
+       ___
+     o|* *|o         _____  __  __    ____   ____   __   __        
+     o|* *|o        |_   _||  \/  |  |  _ \ / ___|  \ \ / /        
+     o|* *|o          | |  | |\/| |  | |_) |\___ \   \ V /           ; 
+      \===/           | |  | |  | |  |  __/  ___) |   | |            ;;
+       |||          |_____||_|  |_|  |_|    |____/    |_|            ;';.
+       |||                                                           ;  ;;
+       |||           INTERACTIVE MUSICAL PREDICTION SYSTEM           ;   ;;
+       |||                        AI + MUSIC                         ;    ;;
+    ___|||___     -----------------------------------------          ;    ;;
+   /   |||   \      Explore real-time predictive music               ;   ;'
+  /    |||    \     generation! Collaborate with an AI that          ;  ' 
+ |     |||     |    anticipates your next musical idea.         ,;;;,;
+  \   (|||)   /     Experience the synergy of machine.          ;;;;;;
+   |   |||   |      learning and human expression!              `;;;;'
+  /    |||    \    -----------------------------------------
+ /     |||     \     	                .,,,.
+/      |||      \                  .;;;;;;;;;,
+|     [===]     |                 ;;;'    `;;;,
+ \             /                 ;;;'      `;;;
+  '.         .'                  ;;;        ;;;
+    '-------'                    ;;;.      ;;;'
+							     `;;;.    ;;;'
+								  `;;;.  ;;;'
+								   `;;',;;'
+								    ,;;;'
+							     ,;;;',;' ...,,,,...
+							  ,;;;'    ,;;;;;;;;;;;;;;,
+						   ,;;;'     ,;;;;;;;;;;;;;;;;;;,
+						  ;;;;'     ;;;',,,   `';;;;;;;;;;
+						 ;;;;,      ;;   ;;;     ';;;;;;;;;
+						;;;;;;       '    ;;;      ';;;;;;;
+						;;;;;;            .;;;      ;;;;;;;
+						;;;;;;,            ;;;;     ;;;;;;'
+						 ;;;;;;,            ;;;;   .;;;;;'
+						  `;;;;;;,           ;;;; ,;;;;;'
+						   `;;;;;;;,,,,,,,,,, ;;;; ;;;'
+							  `;;;;;;;;;;;;;;; ;;;; '
+								  ''''''''''''' ;;;.
+									   .;;;.    `;;;.
+									  ;;;; '     ;;;;
+									  ;;;;,,,..,;;;;;
+									  `;;;;;;;;;;;;;'
+									    `;;;;;;;;;'
+"""
+    print(banner)
     print("Starting IMPSY web interface...")
     
     # Create and run event loop in a separate thread
@@ -884,6 +1096,40 @@ def webui(host, port, debug, dev):
     
     # Run Flask app
     app.run(host=host, port=port, debug=debug)
+
+@app.route('/api/midi-devices', methods=['GET'])
+def get_midi_devices():
+    """Get available MIDI input and output devices"""
+    try:
+        input_devices = mido.get_input_names()
+        output_devices = mido.get_output_names()
+        
+        # Get currently configured devices from config file
+        config_path = os.path.join(PROJECT_ROOT, CONFIG_FILE)
+        with open(config_path, "rb") as f:
+            config = tomllib.load(f)
+        
+        current_in_device = config.get("midi", {}).get("in_device", "")
+        current_out_device = config.get("midi", {}).get("out_device", "")
+        
+        return jsonify({
+            "input_devices": input_devices,
+            "output_devices": output_devices,
+            "current_in_device": current_in_device,
+            "current_out_device": current_out_device,
+            "has_permission": True,  # Default to true, browser-based MIDI will handle permissions
+            "needs_permission": True  # Web MIDI API always needs user permission
+        })
+    except Exception as e:
+        return jsonify({
+            "input_devices": [],
+            "output_devices": [],
+            "current_in_device": "",
+            "current_out_device": "",
+            "has_permission": False,
+            "needs_permission": True,
+            "error": str(e)
+        })
 
 if __name__ == "__main__":
     webui()

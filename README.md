@@ -66,7 +66,7 @@ So what happens if IMPSY and the performer play at the same time? In this exampl
 
 You use the `run` command to log training data. If your interface has N inputs the dimension is N+1:
 
-    poetry run ./start_impsy run
+    poetry run ./start_impsy.py run
 
 This command creates files in the `logs` directory with data like this:
 
@@ -97,7 +97,7 @@ This command collates all logs of dimension N+1 from the logs directory and save
 To train the model, use the `train` command---this can take a while on a normal computer, so be prepared to let your computer sit and think for a few hours! You'll have to decide what _size_ model to try to train: `xs`, `s`, `m`, `l`, `xl`. The size refers to the number of LSTM units in each layer of your model and roughly corresponds to "learning capacity" at a cost of slower training and predictions.
 It's a good idea to start with an `xs` or `s` model, and the larger models may work better for quite large datasets (e.g., >1M individual interactions).
 
-    poetry run ./start_impsy train --dimension (N+1) --modelsize s
+    poetry run ./start_impsy.py train --dimension (N+1) --modelsize s
 
 It's a good idea to use the `earlystopping` option to stop training after the model stops improving for 10 epochs.
 
@@ -115,7 +115,7 @@ size = "s"
 ```
 Which will load a 9d TFLite model of the "small" size. You can run this command to start making predictions:
 
-    poetry run ./start_impsy run 
+    poetry run ./start_impsy.py run 
 
 PS: all the IMPSY commands respond to the `--help` switch to show command line options. If there's something not documented or working, it would be great if you add an issue above to let me know.
 
@@ -175,3 +175,44 @@ The network is illustrated here---every time IMPSY receives an interaction messa
 ![A Musical MDRNN](https://github.com/cpmpercussion/impsy/raw/main/images/mdn_diagram.png)
 
 The MDRNN is written in Keras and uses the [keras-mdn-layer](https://github.com/cpmpercussion/keras-mdn-layer) package. There's more info and tutorials about MDNs on [that github repo](https://github.com/cpmpercussion/keras-mdn-layer).
+
+## Setting Up Virtual MIDI Ports on macOS
+
+If you're using a hardware MIDI controller with software synthesizers like Analog Lab, you may need to create virtual MIDI ports to allow IMPSY to communicate with your software synth. This is especially useful when your synth is directly connected to your MIDI controller but needs to receive MIDI data from IMPSY as well.
+
+Follow these steps to set up a virtual MIDI port on macOS:
+
+1. **Use Audio MIDI Setup to create a virtual MIDI port**:
+   - Open the Audio MIDI Setup application (in Applications > Utilities)
+   - Click on "Window" and select "Show MIDI Studio"
+   - Double-click on the "IAC Driver" icon
+   - Enable the "Device is online" checkbox
+   - Create a new port by clicking the "+" button if needed
+   - Name it something like "IMPSY to Analog Lab"
+   - Click "Apply"
+
+2. **Configure IMPSY to use the virtual MIDI port**:
+   Update your `config.toml` file to use the IAC Driver as the output device:
+   ```toml
+   # MIDI Mapping
+   [midi]
+   in_device = "Minilab3 MIDI"  # Your MIDI controller input
+   out_device = "IAC Driver Bus 1"  # Virtual MIDI port
+   ```
+
+3. **Configure your software synthesizer**:
+   - Open your synth software (e.g., Analog Lab)
+   - Go to its MIDI settings
+   - Set the MIDI input to "IAC Driver Bus 1" 
+
+With this setup:
+1. Your physical MIDI controller sends MIDI to IMPSY
+2. IMPSY processes it and sends its output to the virtual IAC Driver port
+3. Your software synthesizer receives MIDI from the IAC Driver virtual port and produces sound
+
+This creates a bridge between IMPSY and your synthesizer, allowing the prediction system to control the software instrument even when the hardware controller is directly connected to the synth.
+
+For advanced setups, you can use a DAW to host multiple instances of your synth plugin:
+- One instance connected directly to your controller for user playing
+- Another instance connected to the virtual MIDI port for IMPSY control
+- This prevents IMPSY from interfering with your direct playing

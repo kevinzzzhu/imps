@@ -1,18 +1,17 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, List, ListItem, Box, Modal, Paper, Button, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Switch, TextField } from '@mui/material';
+import { Typography, List, ListItem, Box, Modal, Paper, Button, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Switch, TextField, Snackbar, Alert } from '@mui/material';
 import InputVis from './components/project/InputVis';
 import OutputVis from './components/project/OutputVis';
-import { Audio } from 'react-loader-spinner';
 import TimeSeriesGraph from './components/logVis/TimeSeriesGraph';
-import DelaunayGraph from './components/logVis/DelaunayGraph';
-import SplomGraph from './components/logVis/SplomGraph';
+// import SplomGraph from './components/logVis/SplomGraph';
 import ParallelGraph from './components/logVis/ParallelGraph';
-import ViolinGraph from './components/logVis/ViolinGraph';
-import OscillationGraph from './components/logVis/OscillationGraph';
+// import ViolinGraph from './components/logVis/ViolinGraph';
+// import OscillationGraph from './components/logVis/OscillationGraph';
 import { useLocation, useNavigate } from 'react-router-dom';
 import TrainingVisualizer from './components/home/TrainingVisualizer';
+import CreativeBackground from './components/project/BackgroundVis';
 
 const Container = styled.div`
     display: flex;
@@ -21,6 +20,8 @@ const Container = styled.div`
     align-items: center;
     opacity: 0;
     transition: opacity 0.8s ease;
+    position: relative;
+    overflow: hidden;
 `;
 
 const LogList = styled.div`
@@ -34,6 +35,11 @@ const LogList = styled.div`
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    opacity: ${props => props.isHidden ? 0 : 1};
+    transform: ${props => props.isHidden ? 'translateX(-350px)' : 'translateX(0)'};
+    pointer-events: ${props => props.isHidden ? 'none' : 'auto'};
+    z-index: ${props => props.isHidden ? -1 : 5};
 `;
 
 const LogListContent = styled.div`
@@ -98,7 +104,13 @@ const MainContent = styled.div`
     display: flex;
     flex-direction: column;
     align-items: center;
-    position: relative; 
+    position: relative;
+    transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+    transform: ${props => props.expanded ? 'translateX(-100px)' : 'translateX(0)'};
+    margin-left: ${props => props.expanded ? 'auto' : '0'};
+    margin-right: ${props => props.expanded ? 'auto' : '0'};
+    width: ${props => props.expanded ? '80%' : 'auto'};
+    max-width: ${props => props.expanded ? '1200px' : 'none'};
 `;
 
 const StatusDot = styled.div`
@@ -252,6 +264,28 @@ const LogItem = styled.div`
         width: 18px;
         height: 18px;
         cursor: pointer;
+    }
+`;
+
+const DeleteButton = styled.button`
+    background: transparent;
+    color: #aaa;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    margin-left: auto;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+
+    &:hover {
+        color: #e74c3c;
+        opacity: 1;
+        background: rgba(0, 0, 0, 0.05);
     }
 `;
 
@@ -450,7 +484,7 @@ const parseLogData = (content) => {
     }
 };
 
-function Project() {
+function Project({ onModelRunningChange }) {
     const location = useLocation();
     const [inputData, setInputData] = useState([]);
     const [outputData, setOutputData] = useState([]);
@@ -461,7 +495,7 @@ function Project() {
     const [logContent, setLogContent] = useState('');
     const [logData, setLogData] = useState(null);
     const [selectedLogs, setSelectedLogs] = useState([]);
-    const [selectedView, setSelectedView] = useState('basic');
+    const [selectedView, setSelectedView] = useState('TimeSeries');
     const [isModelRunning, setIsModelRunning] = useState(false);
     const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [configContent, setConfigContent] = useState('');
@@ -476,6 +510,10 @@ function Project() {
         batchSize: 64
     });
     const [selectedDimension, setSelectedDimension] = useState(null);
+    const [midiMapping, setMidiMapping] = useState({
+        dimension: 0,
+        ccToIndexMap: {}
+    });
     const navigate = useNavigate();
 
     // Add state for expanded sections
@@ -492,6 +530,11 @@ function Project() {
         other: []
     });
 
+    // Add new state variables for error handling
+    const [modelError, setModelError] = useState(null);
+    const [showErrorAlert, setShowErrorAlert] = useState(false);
+    const [healthCheckInterval, setHealthCheckInterval] = useState(null);
+
     // Add this useEffect to automatically select training logs
     useEffect(() => {
         if (categorizedLogs.training.length > 0) {
@@ -502,43 +545,312 @@ function Project() {
     }, [categorizedLogs.training]);
 
     useEffect(() => {
-        // WebSocket connection
-        const ws = new WebSocket('ws://localhost:8080');
+        // WebSocket connection with reconnection logic
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectInterval = 3000; // 3 seconds
         
-        ws.onopen = () => {
-            console.log('Connected to WebSocket server');
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                // console.log('Received message:', message);
-                
-                if (message.type === 'input') {
-                    setInputData(message.data);
-                } else if (message.type === 'output') {
-                    setOutputData(message.data);
-                }
-            } catch (error) {
-                console.error('Error processing message:', error);
+        const connectWebSocket = () => {
+            // Close existing connection if any
+            if (ws) {
+                ws.close();
             }
+            
+            console.log('Connecting to WebSocket server...');
+            ws = new WebSocket('ws://localhost:8080');
+            
+            ws.onopen = () => {
+                console.log('Connected to WebSocket server');
+                reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+            };
+    
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'input') {
+                        setInputData(message.data);
+                    } else if (message.type === 'output') {
+                        setOutputData(message.data);
+                    }
+                } catch (error) {
+                    console.error('Error processing WebSocket message:', error, 'Raw data:', event.data);
+                }
+            };
+    
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+    
+            ws.onclose = (event) => {
+                console.log(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
+                
+                // Try to reconnect unless max attempts reached or component unmounting
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
+                    setTimeout(connectWebSocket, reconnectInterval);
+                } else {
+                    console.log('Max reconnection attempts reached. Giving up.');
+                }
+            };
         };
-
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-
-        ws.onclose = () => {
-            console.log('Disconnected from WebSocket server');
-        };
-
+        
+        // Initial connection
+        connectWebSocket();
+    
         // Cleanup
         return () => {
-            if (ws.readyState === WebSocket.OPEN) {
+            if (ws && [WebSocket.CONNECTING, WebSocket.OPEN].includes(ws.readyState)) {
+                console.log('Closing WebSocket connection due to component unmount');
+                // Set a flag to prevent reconnection attempts
+                reconnectAttempts = maxReconnectAttempts;
                 ws.close();
             }
         };
     }, []);
+
+    // Add useEffect to ensure loading state is reset
+    useEffect(() => {
+        // Set a timeout to ensure loading state is reset even if other operations fail
+        const timer = setTimeout(() => {
+            setLoading(false);
+        }, 3000); // 3 second timeout as a fallback
+        
+        return () => clearTimeout(timer);
+    }, []);
+
+    // Add useEffect to fetch config and parse MIDI mapping
+    useEffect(() => {
+        const fetchConfigAndParseMidiMapping = async () => {
+            try {
+                const response = await axios.get('/api/config');
+                const configContent = response.data.config_content;
+                setConfigContent(configContent);
+                
+                // Get dimension from config instead of hardcoding
+                const dimensionMatch = configContent.match(/dimension\s*=\s*(\d+)/);
+                let dimension = (dimensionMatch ? parseInt(dimensionMatch[1]) : 15) - 1;
+                
+                const ccToIndexMap = {};
+                
+                // Parse config line by line
+                const configLines = configContent.split('\n');
+                let inMidiInputSection = false;
+                let inputIndex = 0;
+                
+                // Process each line in the config
+                configLines.forEach(line => {
+                    const trimmedLine = line.trim();
+                    
+                    // Check if we're entering the MIDI input section
+                    if (trimmedLine === 'input = [') {
+                        inMidiInputSection = true;
+                        inputIndex = 0; // Start at index 0
+                        return;
+                    }
+                    
+                    // Check if we're exiting the MIDI input section
+                    if (inMidiInputSection && trimmedLine === ']') {
+                        inMidiInputSection = false;
+                        return;
+                    }
+                    
+                    // Process lines within the MIDI input section
+                    if (inMidiInputSection && trimmedLine.length > 1 && !trimmedLine.startsWith('#')) {
+                        if (trimmedLine.includes('control_change')) {
+                            // Extract the CC number - get the third parameter in the array
+                            const parameters = trimmedLine.match(/\[([^\]]+)\]/);
+                            if (parameters) {
+                                const parts = parameters[1].split(',').map(p => p.trim());
+                                if (parts.length >= 3) {
+                                    const cc = parseInt(parts[2]);
+                                    if (!isNaN(cc)) {
+                                        ccToIndexMap[cc.toString()] = inputIndex;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Increment regardless of message type (note_on or control_change)
+                        if (inputIndex < dimension - 1) { // Ensure we don't exceed dimension-1
+                            inputIndex++;
+                        }
+                    }
+                });
+                
+                // Only fall back to default if no mappings found
+                if (Object.keys(ccToIndexMap).length === 0) {
+                    for (let i = 0; i < dimension - 1; i++) {
+                        ccToIndexMap[(16 + i).toString()] = i + 1;
+                    }
+                }
+                
+                // Ensure inputData has the correct dimension
+                setInputData(Array(dimension).fill(0));
+                
+                setMidiMapping({
+                    dimension,
+                    ccToIndexMap
+                });
+                
+            } catch (error) {
+                console.error('Failed to fetch config:', error);
+            }
+        };
+
+        fetchConfigAndParseMidiMapping();
+    }, []);
+
+    // Effect to handle MIDI input
+    useEffect(() => {
+        let midiAccess = null;
+        let inputDevice = null;
+
+        // Reinitialize input data with correct dimension if needed
+        if (midiMapping.dimension > 0 && 
+            (!inputData || inputData.length !== midiMapping.dimension)) {
+            setInputData(Array(midiMapping.dimension).fill(0));
+        }
+
+        const onMIDIMessage = (event) => {
+            const [status, data1, data2] = event.data;
+            const command = status & 0xf0; // Get command type (e.g., 0xB0 for Control Change)
+
+            // Fix the log input values function to use dynamic dimension
+            const logInputValues = (newInputData) => {
+                if (!newInputData || !Array.isArray(newInputData)) {
+                    return;
+                }
+                
+                // Use the actual dimension of the data rather than hardcoding 15
+                const dimension = newInputData.length;
+                const fixedSizeArray = newInputData.slice(0, dimension);
+                while (fixedSizeArray.length < dimension) {
+                    fixedSizeArray.push(0);
+                }
+                
+                const valuesString = fixedSizeArray.map(val => 
+                    val !== undefined ? val.toFixed(15) : '0.000000000000000'
+                ).join(', ');
+            };
+
+            // Ensure inputData is properly initialized before continuing
+            if (!inputData || !Array.isArray(inputData) || inputData.length === 0) {
+                return;
+            }
+
+            // Check if MIDI mapping is initialized
+            if (!midiMapping || !midiMapping.ccToIndexMap) {
+                return;
+            }
+
+            // Force the input data to be the correct dimension
+            if (inputData.length !== midiMapping.dimension) {
+                return;
+            }
+
+            // Handle different message types
+            if (command === 0xB0) {
+                // Control Change messages
+                const controllerNumber = data1;
+                const controllerValue = data2;
+                const normalizedValue = controllerValue / 127.0; // Normalize to 0.0 - 1.0
+
+                // Find the target index in inputData using the map from midiMapping state
+                // Convert controllerNumber to string since Object keys are always strings
+                const ccStr = controllerNumber.toString();
+                const targetIndex = midiMapping.ccToIndexMap[ccStr];
+
+                // Fix the code in the setInputData callback to use dynamic dimension
+                setInputData(prevInputData => {
+                    // Create a copy that we'll update
+                    let tmpInputData = [...prevInputData];
+                    
+                    // Update the mapped index if it's within range
+                    if (targetIndex < midiMapping.dimension) {
+                        tmpInputData[targetIndex] = normalizedValue;
+                    }
+                    
+                    // Ensure the array has the correct dimension (trimming or padding as needed)
+                    const newInputData = tmpInputData.slice(0, midiMapping.dimension);
+                    while (newInputData.length < midiMapping.dimension) {
+                        newInputData.push(0);
+                    }
+                    
+                    // Log the updated input values
+                    logInputValues(newInputData);
+                    
+                    return newInputData;
+                });
+            } else if (command === 0x90) {
+                // Note On message
+                const noteNumber = data1;
+                const velocity = data2;
+                
+                // If velocity is 0, it's actually a note off message
+                if (velocity === 0) {
+                    return;
+                }
+                
+                const normalizedNote = noteNumber / 127.0; // Normalize to 0.0 - 1.0
+                
+                // In config.toml, note_on is mapped to index 0
+                setInputData(prevInputData => {
+                    const newInputData = [...prevInputData.slice(0, midiMapping.dimension)]; // Ensure it's the right size
+                    newInputData[0] = normalizedNote;
+                    
+                    // Log the updated input values
+                    logInputValues(newInputData);
+                    
+                    return newInputData;
+                });
+                
+            } else if (command === 0x80) {
+                // Note Off message
+                const noteNumber = data1;
+            }
+        };
+
+        const setupMIDI = async () => {
+            if (navigator.requestMIDIAccess) {
+                try {
+                    midiAccess = await navigator.requestMIDIAccess();
+                    // Get the first available input device
+                    const inputs = midiAccess.inputs.values();
+                    for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
+                        inputDevice = input.value;
+                        break; // Use the first device found
+                    }
+
+                    if (inputDevice) {
+                        console.log(`Using MIDI Input: ${inputDevice.name}`);
+                        inputDevice.onmidimessage = onMIDIMessage;
+                    } else {
+                        console.log('No MIDI input devices found.');
+                    }
+
+                } catch (error) {
+                    console.error('Failed to get MIDI access:', error);
+                }
+            } else {
+                console.log('Web MIDI API not supported in this browser.');
+            }
+            console.log("MIDI Setup Effect: setupMIDI function finished");
+        };
+
+        setupMIDI();
+
+        // Cleanup function
+        return () => {
+            console.log("MIDI Setup Effect: Cleaning up");
+            if (inputDevice) {
+                inputDevice.onmidimessage = null; // Remove listener
+                console.log('MIDI listener removed.');
+            }
+            // Note: Closing midiAccess itself isn't standard practice or necessary
+        };
+    }, [midiMapping]);
 
     useEffect(() => {
         // Fade in when component mounts
@@ -677,40 +989,12 @@ function Project() {
         }
     };
 
-    // Add handler for run button
-    const handleRunClick = async () => {
-        if (isModelRunning) {
-            // Stop the model
-            try {
-                setLoading(true);
-                await stopModel();
-                // Fetch config after stopping the model
-                await fetchConfig();
-            } catch (error) {
-                console.error('Error stopping model:', error);
-                alert('Failed to stop model: ' + error.response?.data?.error || error.message);
-            } finally {
-                setLoading(false);
-            }
-        } else {
-            // Start the model
-            try {
-                setLoading(true);
-                const response = await axios.post('/api/run-model');
-                
-                if (response.data.success) {
-                    setIsModelRunning(true);
-                } else {
-                    alert('Failed to start model: ' + response.data.error);
-                }
-            } catch (error) {
-                console.error('Error starting model:', error);
-                alert('Failed to start model: ' + error.response?.data?.error || error.message);
-            } finally {
-                setLoading(false);
-            }
+    // Add effect to notify parent when modelRunning state changes
+    useEffect(() => {
+        if (onModelRunningChange) {
+            onModelRunningChange(isModelRunning);
         }
-    };
+    }, [isModelRunning, onModelRunningChange]);
 
     // Add cleanup function
     const stopModel = useCallback(async () => {
@@ -718,11 +1002,14 @@ function Project() {
             try {
                 await axios.post('/api/stop-model');
                 setIsModelRunning(false);
+                if (onModelRunningChange) {
+                    onModelRunningChange(false);
+                }
             } catch (error) {
                 console.error('Error stopping model:', error);
             }
         }
-    }, [isModelRunning]);
+    }, [isModelRunning, onModelRunningChange]);
 
     // Add cleanup effect
     useEffect(() => {
@@ -742,6 +1029,8 @@ function Project() {
             setConfigContent(response.data.config_content);
         } catch (error) {
             console.error('Failed to fetch config:', error);
+        } finally {
+            setLoading(false); // Ensure loading is set to false after config fetching
         }
     };
 
@@ -853,7 +1142,10 @@ function Project() {
     useEffect(() => {
         // Get model name from config
         const modelDir = configContent.match(/file = "models\/(.*?)"/)?.[1];
-        if (!modelDir) return;
+        if (!modelDir) {
+            setLoading(false); // Ensure loading is set to false even if no model dir is found
+            return;
+        }
 
         // Fetch all data from model-data endpoint
         const fetchModelData = async () => {
@@ -888,9 +1180,166 @@ function Project() {
         fetchModelData();
     }, [configContent]);
 
+    // handle log file deletion
+    const handleDeleteLog = async (filename, event) => {
+        event.stopPropagation(); // Prevent log selection when clicking delete
+        
+        if (window.confirm(`Are you sure you want to delete ${filename}?`)) {
+            try {
+                const response = await axios.delete(`/api/logs/${filename}`);
+                if (response.data.success) {
+                    // Remove from selected logs if it was selected
+                    if (selectedLogs.includes(filename)) {
+                        setSelectedLogs(prev => prev.filter(f => f !== filename));
+                    }
+                    
+                    // Clear selected log if it was the one being viewed
+                    if (selectedLog === filename) {
+                        setSelectedLog(null);
+                        setLogContent('');
+                        setLogData(null);
+                        setModalOpen(false);
+                    }
+                    
+                    // Update categorized logs
+                    setCategorizedLogs(prev => {
+                        const newCategorized = { ...prev };
+                        Object.keys(newCategorized).forEach(category => {
+                            newCategorized[category] = newCategorized[category].filter(
+                                log => log !== filename
+                            );
+                        });
+                        return newCategorized;
+                    });
+                    
+                    // Refresh the log files list by re-fetching model data
+                    categorizeLogs();
+                } else {
+                    alert(`Error: ${response.data.error}`);
+                }
+            } catch (error) {
+                console.error('Failed to delete log file:', error);
+                alert(`Failed to delete log file: ${error.message}`);
+            }
+        }
+    };
+
+    // Update the handleRunClick function
+    const handleRunClick = async () => {
+        if (isModelRunning) {
+            // Stop the model
+            try {
+                setLoading(true);
+                await stopModel();
+                // Fetch config after stopping the model
+                await fetchConfig();
+            } catch (error) {
+                console.error('Error stopping model:', error);
+                alert('Failed to stop model: ' + error.response?.data?.error || error.message);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Start the model
+            try {
+                setLoading(true);
+                const response = await axios.post('/api/run-model');
+                
+                if (response.data.success) {
+                    setIsModelRunning(true);
+                    if (onModelRunningChange) {
+                        onModelRunningChange(true);
+                    }
+                } else {
+                    alert('Failed to start model: ' + response.data.error);
+                }
+            } catch (error) {
+                console.error('Error starting model:', error);
+                alert('Failed to start model: ' + error.response?.data?.error || error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    // Add model health check effect
+    useEffect(() => {
+        let intervalId = null;
+
+        // Start health check polling when model is running
+        if (isModelRunning) {
+            intervalId = setInterval(async () => {
+                try {
+                    console.log("Checking model status...");
+                    const response = await axios.get('/api/model-status');
+                    
+                    // If model was running but has stopped unexpectedly
+                    if (!response.data.running && isModelRunning) {
+                        console.log("Model stopped unexpectedly:", response.data);
+                        
+                        // Set error message
+                        const errorMsg = response.data.message || "Model stopped unexpectedly";
+                        setModelError(errorMsg);
+                        setShowErrorAlert(true);
+                        
+                        // Update state to reflect model has stopped
+                        setIsModelRunning(false);
+                        if (onModelRunningChange) {
+                            onModelRunningChange(false);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error checking model status:", error);
+                    // If we can't check the status, assume model has crashed
+                    if (isModelRunning) {
+                        setModelError("Failed to check model status. The model may have crashed.");
+                        setShowErrorAlert(true);
+                        setIsModelRunning(false);
+                        if (onModelRunningChange) {
+                            onModelRunningChange(false);
+                        }
+                    }
+                }
+            }, 5000); // Check every 5 seconds
+            
+            setHealthCheckInterval(intervalId);
+        } else if (intervalId) {
+            // Clear interval if model is no longer running
+            clearInterval(intervalId);
+            setHealthCheckInterval(null);
+        }
+        
+        // Cleanup function
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    }, [isModelRunning, onModelRunningChange]);
+
+    // Add cleanup effect for health check interval
+    useEffect(() => {
+        return () => {
+            if (healthCheckInterval) {
+                clearInterval(healthCheckInterval);
+            }
+        };
+    }, [healthCheckInterval]);
+
+    // Add handler for error alert close
+    const handleErrorAlertClose = () => {
+        setShowErrorAlert(false);
+    };
+
     return (
         <Container className="project-container">
-            <LogList>
+            <CreativeBackground 
+                inputData={inputData} 
+                outputData={outputData} 
+                isModelRunning={isModelRunning}
+            />
+            
+            <LogList isHidden={isModelRunning}>
                 <Typography variant="h5" gutterBottom>Model Distillation</Typography>
                 
                 {/* Generated Logs Section */}
@@ -917,6 +1366,12 @@ function Project() {
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 {file}
+                                <DeleteButton 
+                                    onClick={(e) => handleDeleteLog(file, e)}
+                                    title="Delete log file"
+                                >
+                                    ×
+                                </DeleteButton>
                             </LogItem>
                         ))}
                     </LogListContent>
@@ -926,7 +1381,7 @@ function Project() {
                 <LogSection>
                     <SectionHeader onClick={() => toggleSection('training')}>
                         <Typography variant="subtitle1" sx={{ color: '#666666' }}>
-                            Used to Train Current Model ({categorizedLogs.training.length})
+                            Files Used to Train This Model ({categorizedLogs.training.length})
                         </Typography>
                         <ExpandIcon expanded={expandedSections.training}>▼</ExpandIcon>
                     </SectionHeader>
@@ -946,6 +1401,12 @@ function Project() {
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 {file}
+                                <DeleteButton 
+                                    onClick={(e) => handleDeleteLog(file, e)}
+                                    title="Delete log file"
+                                >
+                                    ×
+                                </DeleteButton>
                             </LogItem>
                         ))}
                     </LogListContent>
@@ -975,6 +1436,12 @@ function Project() {
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 {file}
+                                <DeleteButton 
+                                    onClick={(e) => handleDeleteLog(file, e)}
+                                    title="Delete log file"
+                                >
+                                    ×
+                                </DeleteButton>
                             </LogItem>
                         ))}
                     </LogListContent>
@@ -1009,16 +1476,43 @@ function Project() {
                 </ButtonContainer>
             </LogList>
 
-            <MainContent>
-                <Typography variant="h4" gutterBottom>IMPSY Visualization</Typography>
-                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-evenly' }}>
+            <MainContent expanded={isModelRunning}>
+                <Typography 
+                    variant="h4" 
+                    gutterBottom
+                    sx={{
+                        transition: 'opacity 0.5s ease',
+                        opacity: isModelRunning ? 0.2 : 1
+                    }}
+                >
+                    IMPSY Visualization
+                </Typography>
+                <div 
+                    style={{ 
+                        display: 'flex', 
+                        width: '100%', 
+                        justifyContent: 'space-evenly',
+                        transition: 'transform 0.5s ease, margin-top 0.5s ease',
+                        marginTop: isModelRunning ? '50px' : '0'
+                    }}
+                >
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <InputVis data={inputData}/>
-                        <Typography variant="subtitle1">Input</Typography>
+                        <Typography 
+                            variant="subtitle1"
+                            sx={{ transition: 'opacity 0.5s ease', opacity: isModelRunning ? 0.6 : 1 }}
+                        >
+                            Input
+                        </Typography>
                     </div>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <OutputVis data={outputData}/>
-                        <Typography variant="subtitle1">Output</Typography>
+                        <Typography 
+                            variant="subtitle1"
+                            sx={{ transition: 'opacity 0.5s ease', opacity: isModelRunning ? 0.6 : 1 }}
+                        >
+                            Output
+                        </Typography>
                     </div>
                 </div>
                 <RunButtonContainer>
@@ -1027,6 +1521,9 @@ function Project() {
                         onClick={handleRunClick}
                         disabled={loading}
                         className={isModelRunning ? 'running' : ''}
+                        style={{
+                            backgroundColor: isModelRunning ? '#e74c3c' : '#808080'
+                        }}
                     >
                         {isModelRunning ? 'Stop' : 'Run Model'}
                     </button>
@@ -1049,66 +1546,53 @@ function Project() {
 
                     {/* Add view selector buttons */}
                     <Box sx={{ mb: 2, display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <Button 
-                            variant={selectedView === 'basic' ? 'contained' : 'outlined'}
-                            onClick={() => setSelectedView('basic')}
-                        >
-                            Basic Time Series View
-                        </Button>
                         <Button
-                            variant={selectedView === 'delaunay' ? 'contained' : 'outlined'} 
-                            onClick={() => setSelectedView('delaunay')}
+                            variant={selectedView === 'TimeSeries' ? 'contained' : 'outlined'} 
+                            onClick={() => setSelectedView('TimeSeries')}
                         >
-                            Delaunay View
+                            TimeSeries View
                         </Button>
-                        <Button
+                        {/* <Button
                             variant={selectedView === 'splom' ? 'contained' : 'outlined'}
                             onClick={() => setSelectedView('splom')}
                         >
                             Splom View
-                        </Button>
+                        </Button> */}
                         <Button
                             variant={selectedView === 'parallel' ? 'contained' : 'outlined'}
                             onClick={() => setSelectedView('parallel')}
                         >
                             Parallel View
                         </Button>
-                        <Button
+                        {/* <Button
                             variant={selectedView === 'violin' ? 'contained' : 'outlined'}
                             onClick={() => setSelectedView('violin')}
                         >
                             Violin View
-                        </Button>
-                        <Button
+                        </Button> */}
+                        {/* <Button
                             variant={selectedView === 'oscillation' ? 'contained' : 'outlined'}
                             onClick={() => setSelectedView('oscillation')}
                         >
                             Oscillation View
-                        </Button>
+                        </Button> */}
                     </Box>
 
                     {/* Conditional rendering based on selected view */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {selectedView === 'basic' && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>                        
+                        {selectedView === 'TimeSeries' && (
                             <Box>
-                                <Typography variant="subtitle1" gutterBottom>Basic View</Typography>
+                                <Typography variant="subtitle1" gutterBottom>TimeSeries View</Typography>
                                 {logData && <TimeSeriesGraph data={logData} />}
                             </Box>
                         )}
-                        
-                        {selectedView === 'delaunay' && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Delaunay View</Typography>
-                                {logData && <DelaunayGraph data={logData} />}
-                            </Box>
-                        )}
 
-                        {selectedView === 'splom' && (
+                        {/* {selectedView === 'splom' && (
                             <Box>
                                 <Typography variant="subtitle1" gutterBottom>Splom View</Typography>
                                 {logData && <SplomGraph data={logData} />}
                             </Box>
-                        )}
+                        )} */}
 
                         {selectedView === 'parallel' && (
                             <Box>
@@ -1117,19 +1601,19 @@ function Project() {
                             </Box>
                         )}
 
-                        {selectedView === 'violin' && (
+                        {/* {selectedView === 'violin' && (
                             <Box>
                                 <Typography variant="subtitle1" gutterBottom>Violin View</Typography>
                                 {logData && <ViolinGraph data={logData} />}
                             </Box>
-                        )}
+                        )} */}
 
-                        {selectedView === 'oscillation' && (
+                        {/* {selectedView === 'oscillation' && (
                             <Box>
                                 <Typography variant="subtitle1" gutterBottom>Oscillation View</Typography>
                                 {logData && <OscillationGraph data={logData} />}
                             </Box>
-                        )}
+                        )} */}
                     </Box>
                     
 
@@ -1142,7 +1626,10 @@ function Project() {
                         fontSize: '14px',
                         backgroundColor: '#f5f5f5',
                         padding: '15px',
-                        borderRadius: '4px'
+                        borderRadius: '4px',
+                        overflowX: 'auto',
+                        maxWidth: '100%',
+                        wordBreak: 'break-all'
                     }}>
                         {logContent}
                     </Box>
@@ -1323,6 +1810,25 @@ function Project() {
                     </Button>
                 </>
             )}
+
+            {/* Add Snackbar for error alerts */}
+            <Snackbar 
+                open={showErrorAlert} 
+                autoHideDuration={6000} 
+                onClose={handleErrorAlertClose}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert 
+                    onClose={handleErrorAlertClose} 
+                    severity="error" 
+                    sx={{ width: '100%', maxWidth: '500px' }}
+                >
+                    <Box>
+                        <Typography variant="subtitle1">Model Error</Typography>
+                        <Typography variant="body2">{modelError}</Typography>
+                    </Box>
+                </Alert>
+            </Snackbar>
         </Container>
     );
 }

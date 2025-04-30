@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, CircularProgress, Grid2, Container } from '@mui/material';
+import { Typography, CircularProgress, Container } from '@mui/material';
 
 const RecentContainer = styled.div`
     padding: 40px 20px;
@@ -10,18 +10,29 @@ const RecentContainer = styled.div`
     height: 90vh;
     display: flex;
     flex-direction: column;
+    align-items: center;
     overflow: hidden;
 `;
 
 const HeaderContainer = styled.div`
-    margin-bottom: 20px;
+    margin-bottom: 30px;
     text-align: center;
+    max-width: 800px;
+`;
+
+const ProjectGrid = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    width: 90%;
+    max-width: 800px;
 `;
 
 const ProjectItem = styled.div`
     background-color: #ffffff;
     padding: 24px;
-    height: 100%;
+    height: 160px;
+    width: 100%;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     cursor: pointer;
@@ -40,6 +51,9 @@ const ProjectTitle = styled(Typography)`
     font-weight: 600;
     color: #2c3e50;
     font-size: 1.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 `;
 
 const ProjectMeta = styled(Typography)`
@@ -56,6 +70,10 @@ const ProjectDescription = styled(Typography)`
     font-size: 1rem;
     line-height: 1.5;
     flex-grow: 1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
 `;
 
 const LoadingContainer = styled.div`
@@ -71,6 +89,8 @@ const NoProjectsContainer = styled.div`
     background-color: #ffffff;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    width: 300px;
+    margin: 0 auto;
 `;
 
 const ScrollableContent = styled.div`
@@ -78,6 +98,9 @@ const ScrollableContent = styled.div`
     overflow-y: auto;
     padding: 0 20px 40px;
     height: calc(100vh - 200px);
+    width: 100%;
+    display: flex;
+    justify-content: center;
 `;
 
 function RecentProjects() {
@@ -131,49 +154,45 @@ function RecentProjects() {
 
     return (
         <RecentContainer>
-            <Container maxWidth="xl">
-                <HeaderContainer>
-                    <Typography variant="h5" gutterBottom>
-                        Recent Projects
-                    </Typography>
-                    <Typography variant="subtitle1" color="textSecondary">
-                        Browse and manage your IMPSY projects
-                    </Typography>
-                </HeaderContainer>
+            <HeaderContainer>
+                <Typography variant="h5" gutterBottom>
+                    Recent Projects
+                </Typography>
+                <Typography variant="subtitle1" color="textSecondary">
+                    Browse and manage your IMPSY projects
+                </Typography>
+            </HeaderContainer>
 
-                <ScrollableContent>
-                    {projects.length === 0 ? (
-                        <NoProjectsContainer>
-                            <Typography variant="h6">No projects found</Typography>
-                            <Typography color="textSecondary" sx={{ mt: 1 }}>
-                                Create a new project to get started
-                            </Typography>
-                        </NoProjectsContainer>
-                    ) : (
-                        <Grid2 container spacing={8}>
-                            {projects.map((project, index) => (
-                                <Grid2 item xs={12} sm={6} lg={4} xl={3} key={index}>
-                                    <ProjectItem onClick={() => handleProjectClick(project)}>
-                                        <ProjectTitle variant="h6">
-                                            {project.name}
-                                        </ProjectTitle>
-                                        <ProjectDescription>
-                                            {project.title}
-                                            <br />
-                                            {project.description}
-                                        </ProjectDescription>
-                                        <ProjectMeta>
-                                            {project.owner} • {
-                                                new Date(project.last_modified * 1000).toLocaleString()
-                                            }
-                                        </ProjectMeta>
-                                    </ProjectItem>
-                                </Grid2>
-                            ))}
-                        </Grid2>
-                    )}
-                </ScrollableContent>
-            </Container>
+            <ScrollableContent>
+                {projects.length === 0 ? (
+                    <NoProjectsContainer>
+                        <Typography variant="h6">No projects found</Typography>
+                        <Typography color="textSecondary" sx={{ mt: 1 }}>
+                            Create a new project to get started
+                        </Typography>
+                    </NoProjectsContainer>
+                ) : (
+                    <ProjectGrid>
+                        {projects.map((project, index) => (
+                            <ProjectItem key={index} onClick={() => handleProjectClick(project)}>
+                                <ProjectTitle variant="h6">
+                                    {project.name}
+                                </ProjectTitle>
+                                <ProjectDescription>
+                                    {project.title}
+                                    <br />
+                                    {project.description}
+                                </ProjectDescription>
+                                <ProjectMeta>
+                                    {project.owner} • {
+                                        new Date(project.last_modified * 1000).toLocaleString()
+                                    }
+                                </ProjectMeta>
+                            </ProjectItem>
+                        ))}
+                    </ProjectGrid>
+                )}
+            </ScrollableContent>
         </RecentContainer>
     );
 }
