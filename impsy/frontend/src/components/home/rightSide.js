@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { Typography, Modal, Button, Box, TextField, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
+import { Typography, Modal, Button, Box, TextField, MenuItem, Select, FormControl, InputLabel, Tooltip } from '@mui/material';
 import { Audio } from 'react-loader-spinner';
 import {
     Chart as ChartJS,
@@ -10,7 +10,7 @@ import {
     PointElement,
     LineElement,
     Title,
-    Tooltip,
+    Tooltip as ChartTooltip,
     Legend,
     TimeScale
 } from 'chart.js';
@@ -25,7 +25,7 @@ ChartJS.register(
     LineElement,
     TimeScale,
     Title,
-    Tooltip,
+    ChartTooltip,
     Legend
 );
 
@@ -446,12 +446,48 @@ const DeleteButton = styled.button`
     }
 `;
 
+const HelpIcon = styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(52, 152, 219, 0.8);
+    color: white;
+    font-size: 12px;
+    margin-left: 8px;
+    cursor: help;
+`;
+
 const impsyModes = ["callresponse", "polyphony", "battle", "useronly"];
+
+// Add descriptions for each IMPSY mode
+const impsyModeDescriptions = {
+    "callresponse": "Call and Response mode: The AI responds to your inputs in a turn-taking fashion.",
+    "polyphony": "Polyphony mode: The AI generates material in parallel with your inputs, creating interleaved musical lines.",
+    "battle": "Battle mode: You and the AI take turns generating material in a competitive musical exchange.",
+    "useronly": "User Only mode: Only your inputs are played, with no AI responses."
+};
 
 // Helper to extract current mode from configContent
 function getCurrentMode(configContent) {
     const match = configContent.match(/mode\s*=\s*"(callresponse|polyphony|battle|useronly)"/);
     return match ? match[1] : "callresponse";
+}
+
+// Helper to determine model size based on units in the filename
+function determineModelSize(modelFilename) {
+    const unitsMatch = modelFilename.match(/units(\d+)/);
+    if (!unitsMatch) return "s"; // Default to "s" if no units found
+    
+    const units = parseInt(unitsMatch[1]);
+    
+    if (units <= 32) return "xs";
+    if (units <= 64) return "s";
+    if (units <= 128) return "m";
+    if (units <= 256) return "l";
+    return "xl"; // For units > 256
 }
 
 const RightSide = () => {
@@ -542,7 +578,8 @@ const RightSide = () => {
 
     useEffect(() => {
         if (configContent) {
-            setMode(getCurrentMode(configContent));
+            const currentMode = getCurrentMode(configContent);
+            setMode(currentMode);
         }
     }, [configContent]);
 
@@ -784,7 +821,7 @@ const RightSide = () => {
     const fetchConfig = async () => {
         try {
             const response = await axios.get('/api/config');
-            const updatedContent = response.data.config_content
+            let updatedContent = response.data.config_content
                 // Update model file path
                 .replace(
                     /file = "models\/.*"/,
@@ -800,6 +837,20 @@ const RightSide = () => {
                     /project_name = ".*"/,
                     `project_name = ""`
                 );
+                
+            // Ensure mode is set to callresponse by default
+            updatedContent = updatedContent.replace(
+                /mode\s*=\s*"(callresponse|polyphony|battle|useronly)"/,
+                `mode = "callresponse"`
+            );
+            
+            // Set the model size based on units in the filename
+            const modelSize = determineModelSize(selectedModel);
+            updatedContent = updatedContent.replace(
+                /size\s*=\s*"(xs|s|m|l|xl)"/,
+                `size = "${modelSize}"`
+            );
+            
             setConfigContent(updatedContent);
         } catch (error) {
             console.error('Failed to fetch config:', error);
@@ -1086,8 +1137,28 @@ const RightSide = () => {
                             }}
                         />
                         {/* IMPSY Mode Dropdown at top right of config panel */}
-                        <div style={{ marginLeft: 'auto', marginTop: 0 }}>
-                            <FormControl size="small" variant="outlined" sx={{ minWidth: 180, background: 'rgba(44,62,80,0.8)', borderRadius: 1 }}>
+                        <div style={{ marginLeft: 'auto', marginTop: 0, display: 'flex', alignItems: 'center' }}>
+                            <Tooltip 
+                                title={impsyModeDescriptions[mode] || ''}
+                                placement="right"
+                                arrow
+                                componentsProps={{
+                                    tooltip: {
+                                        sx: {
+                                            bgcolor: 'rgba(25, 25, 25, 0.9)',
+                                            color: 'white',
+                                            fontSize: '0.85rem',
+                                            padding: '8px 12px',
+                                            maxWidth: '300px',
+                                            borderRadius: '4px',
+                                            boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+                                        }
+                                    }
+                                }}
+                            >
+                                <HelpIcon>?</HelpIcon>
+                            </Tooltip>
+                            <FormControl size="small" variant="outlined" sx={{ minWidth: 180, background: 'rgba(44,62,80,0.8)', borderRadius: 1, ml: 1 }}>
                                 <InputLabel sx={{ color: 'white' }}>IMPSY Mode</InputLabel>
                                 <Select
                                     label="IMPSY Mode"
@@ -1096,7 +1167,12 @@ const RightSide = () => {
                                     sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' } }}
                                 >
                                     {impsyModes.map(opt => (
-                                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                                        <MenuItem 
+                                            key={opt} 
+                                            value={opt}
+                                        >
+                                            {opt}
+                                        </MenuItem>
                                     ))}
                                 </Select>
                             </FormControl>

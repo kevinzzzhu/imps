@@ -17,29 +17,31 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
     const animationRef = useRef(null);
     const particlesRef = useRef([]);
     const flowFieldRef = useRef([]);
+    const prevInputDataRef = useRef(null); // To store previous inputData
+    const prevOutputDataRef = useRef(null); // To store previous outputData
     const stateRef = useRef({
         energy: 0.5,
         harmony: 0.5,
-        lastUpdate: Date.now()
+        lastParticleSpawnTime: 0
     });
     
     // Enhanced color palettes with better colors
     const humanColorPalette = useRef([
-        'rgba(52, 152, 219, 0.7)', // Blue
-        'rgba(26, 188, 156, 0.7)', // Turquoise
-        'rgba(46, 204, 113, 0.7)', // Green
-        'rgba(155, 89, 182, 0.7)', // Purple
-        'rgba(52, 73, 94, 0.7)',   // Dark Blue-Gray
-        'rgba(22, 160, 133, 0.7)'  // Dark Cyan
+        'rgba(52, 152, 219, 0.5)', // Blue
+        'rgba(26, 188, 156, 0.5)', // Turquoise
+        'rgba(46, 204, 113, 0.5)', // Green
+        'rgba(155, 89, 182, 0.5)', // Purple
+        'rgba(52, 73, 94, 0.5)',   // Dark Blue-Gray
+        'rgba(22, 160, 133, 0.5)'  // Dark Cyan
     ]);
     
     const aiColorPalette = useRef([
-        'rgba(231, 76, 60, 0.7)',  // Red
-        'rgba(243, 156, 18, 0.7)', // Yellow
-        'rgba(211, 84, 0, 0.7)',   // Orange
-        'rgba(142, 68, 173, 0.7)', // Dark Purple
-        'rgba(230, 126, 34, 0.7)', // Carrot Orange
-        'rgba(231, 76, 60, 0.7)'   // Red
+        'rgba(231, 76, 60, 0.5)',  // Red
+        'rgba(243, 156, 18, 0.5)', // Yellow
+        'rgba(211, 84, 0, 0.5)',   // Orange
+        'rgba(173, 68, 138, 0.5)', // Dark Purple
+        'rgba(230, 126, 34, 0.5)', // Carrot Orange
+        'rgba(231, 76, 60, 0.5)'   // Red
     ]);
     
     // Initialize particles with more variety
@@ -73,14 +75,13 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
             particlesRef.current.push({
                 x: Math.random() * width,
                 y: Math.random() * height,
-                size: Math.random() * 3 + 1,
+                size: Math.random() * 4 + 2,
                 color: colorPalette[Math.floor(Math.random() * colorPalette.length)],
                 speed: Math.random() * 1.5 + 0.5,
                 speedMultiplier: 1,
                 isHuman,
                 history: [],
-                historyLength: Math.floor(Math.random() * 10) + 5, // Varied trail lengths
-                pulsing: Math.random() > 0.6, // Some particles will pulse
+                pulsing: Math.random() > 0.6,
                 pulseRate: Math.random() * 0.05 + 0.01,
                 pulsePhase: Math.random() * Math.PI * 2,
                 birthTime: Date.now(),
@@ -135,20 +136,13 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
         energy = isNaN(energy) ? 0.5 : Math.max(0, Math.min(1, energy));
         harmony = isNaN(harmony) ? 0.5 : Math.max(0, Math.min(1, harmony));
         
-        // Update state
-        stateRef.current = {
-            energy,
-            harmony,
-            lastUpdate: Date.now()
-        };
-        
         return { energy, harmony };
     }, []);
     
-    // Update flow field based on input and output data
-    const updateFlowField = useCallback((inputData, outputData) => {
+    // Update flow field based on input and output data, and whether they changed
+    const updateFlowField = useCallback((currentInputData, currentOutputData, inputActuallyChanged, outputActuallyChanged) => {
         if (!canvasRef.current) return;
-        
+
         const canvas = canvasRef.current;
         const width = canvas.width;
         const height = canvas.height;
@@ -156,49 +150,65 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
         const cols = Math.floor(width / resolution);
         const rows = Math.floor(height / resolution);
         
-        // Get more values from input and output
-        const validInputData = Array.isArray(inputData) ? inputData.slice(0, Math.min(inputData.length, 8)) : [];
-        const validOutputData = Array.isArray(outputData) ? outputData.slice(0, Math.min(outputData.length, 8)) : [];
+        // Use logical viewport dimensions for positioning centers based on percentages
+        const logicalWidth = window.innerWidth;
+        const logicalHeight = window.innerHeight;
         
-        // Calculate metrics for more dynamic behavior - use safe defaults if calculation fails
-        const metrics = calculateDataMetrics(validInputData, validOutputData) || { energy: 0.5, harmony: 0.5 };
-        const { energy, harmony } = metrics;
+        // Use only the first 8 values for creating centers
+        const activeInputData = Array.isArray(currentInputData) ? currentInputData.slice(0, Math.min(currentInputData.length, 8)) : [];
+        const activeOutputData = Array.isArray(currentOutputData) ? currentOutputData.slice(0, Math.min(currentOutputData.length, 8)) : [];
         
-        // Create centers of influence from active input/output values
+        // Calculate metrics based on the *current* data, regardless of whether it changed this cycle,
+        // as the overall energy/harmony might still be relevant for particle behavior if any centers are active.
+        const metrics = calculateDataMetrics(activeInputData, activeOutputData) || { energy: 0.5, harmony: 0.5 };
+        
+        stateRef.current.energy = metrics.energy;
+        stateRef.current.harmony = metrics.harmony;
+        const energy = metrics.energy;
+
         const centers = [];
-        validInputData.forEach((val, i) => {
-            if (val > 0.2) {
-                centers.push({
-                    x: width * (0.2 + (i / validInputData.length) * 0.6),
-                    y: height * 0.3,
-                    strength: val * 2,
-                    isInput: true
-                });
-            }
-        });
+        let inputCenterCount = 0;
+        if (inputActuallyChanged) { // Only create input centers if input data changed
+            activeInputData.forEach((val, i) => {
+                if (val > 0.2) {
+                    centers.push({
+                        x: Math.random() * logicalWidth * 0.4, 
+                        y: Math.random() * logicalHeight,    
+                        strength: val * 2,
+                        isInput: true
+                    });
+                    inputCenterCount++;
+                }
+            });
+        }
         
-        validOutputData.forEach((val, i) => {
-            if (val > 0.2) {
-                centers.push({
-                    x: width * (0.2 + (i / validOutputData.length) * 0.6), 
-                    y: height * 0.7,
-                    strength: val * 2,
-                    isInput: false
-                });
-            }
-        });
-        
+        let outputCenterCount = 0;
+        if (outputActuallyChanged) { // Only create output centers if output data changed
+            activeOutputData.forEach((val, i) => {
+                if (val > 0.2) {
+                    centers.push({
+                        x: logicalWidth * 0.6 + Math.random() * logicalWidth * 0.4, 
+                        y: Math.random() * logicalHeight,    
+                        strength: val * 2,
+                        isInput: false
+                    });
+                    outputCenterCount++;
+                }
+            });
+        }
+
         // Map data to influence flow field
-        for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < cols; x++) {
-                const index = y * cols + x;
+        // This part will now use the potentially fewer (or zero) centers
+        for (let y_coord = 0; y_coord < rows; y_coord++) { // Renamed y to y_coord to avoid conflict
+            for (let x_coord = 0; x_coord < cols; x_coord++) { // Renamed x to x_coord
+                const index = y_coord * cols + x_coord;
                 let angle = flowFieldRef.current[index];
-                const px = x * resolution;
-                const py = y * resolution;
+                const px = x_coord * resolution;
+                const py = y_coord * resolution;
                 
                 // Apply base pattern - changes based on harmony
-                const patternScale = 0.05 * (1 - harmony);
-                angle += Math.sin(x * 0.05 + y * 0.05) * patternScale;
+                const patternScale = 0.05 * (1 - metrics.harmony);
+                angle += Math.sin(x_coord * 0.05 + y_coord * 0.05) * patternScale;
                 
                 // Apply influence from each center
                 centers.forEach(center => {
@@ -214,15 +224,15 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                             const targetAngle = Math.atan2(dy, dx) + Math.PI * (1 - distance/maxDistance);
                             angle = angle * 0.7 + targetAngle * 0.3;
                         } else {
-                            // Output creates outward/inward flow
-                            const targetAngle = Math.atan2(dy, dx) + (harmony > 0.5 ? 0 : Math.PI);
+                            // Output: Harmony interpolates between repel (high harmony) and attract (low harmony)
+                            const targetAngle = Math.atan2(dy, dx) + Math.PI * (1 - distance/maxDistance);
                             angle = angle * 0.7 + targetAngle * 0.3;
                         }
                     }
                 });
                 
                 // Add some noise based on harmony (less noise with higher harmony)
-                angle += (Math.random() - 0.5) * 0.1 * (1 - harmony);
+                angle += (Math.random() - 0.5) * 0.1 * (1 - metrics.harmony);
                 
                 flowFieldRef.current[index] = angle;
             }
@@ -233,91 +243,49 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
             // Higher energy = faster particles
             particle.speedMultiplier = 0.5 + energy * 1.5;
             
-            // Higher harmony = longer trails
-            particle.historyLength = Math.floor(3 + harmony * 20);
-            
             // Vary pulse rate with harmony
             if (particle.pulsing) {
-                particle.pulseRate = 0.01 + (1 - harmony) * 0.1;
+                particle.pulseRate = 0.01 + (1 - metrics.harmony) * 0.1;
             }
         });
         
-        // Ensure we have a minimum number of particles at all times
-        const minParticles = 300;
-        if (particlesRef.current.length < minParticles) {
-            const particlesToAdd = minParticles - particlesRef.current.length;
-            addRandomParticles(particlesToAdd, width, height);
-        }
-        
-        // Spawn new particles on significant data changes 
+        // Spawn new particles only on significant data changes (active centers)
         const now = Date.now();
-        const timeSinceLastUpdate = now - stateRef.current.lastUpdate;
+        const rawLastSpawnTime = stateRef.current.lastParticleSpawnTime;
+        const currentLastSpawnTime = rawLastSpawnTime === undefined ? 0 : rawLastSpawnTime;
+        const timeSinceLastSpawn = now - currentLastSpawnTime;
         
-        // Always create some particles periodically regardless of centers
-        if (timeSinceLastUpdate > 1000) {
-            // Add a small number of regular particles to keep the system alive
-            const maintenanceParticles = 10 + Math.floor(Math.random() * 10);
-            addRandomParticles(maintenanceParticles, width, height);
+        // Only generate particles if there is active input/output (centers exist)
+        // and enough time has passed since the last generation.
+        if (timeSinceLastSpawn > 1000 && centers.length > 0) {
+            // Create new particles around active centers
+            const numNewParticles = Math.floor(energy * 20); // More energy = more particles
             
-            if (centers.length > 0) {
-                // Create new particles around active centers
-                const numNewParticles = Math.floor(energy * 20); // More energy = more particles
+            for (let i = 0; i < numNewParticles; i++) {
+                const center = centers[Math.floor(Math.random() * centers.length)];
+                const isHuman = center.isInput;
+                const colorPalette = isHuman ? humanColorPalette.current : aiColorPalette.current;
                 
-                for (let i = 0; i < numNewParticles; i++) {
-                    const center = centers[Math.floor(Math.random() * centers.length)];
-                    const isHuman = center.isInput;
-                    const colorPalette = isHuman ? humanColorPalette.current : aiColorPalette.current;
-                    
-                    particlesRef.current.push({
-                        x: center.x + (Math.random() - 0.5) * 100,
-                        y: center.y + (Math.random() - 0.5) * 100,
-                        size: Math.random() * 3 + 2,
-                        color: colorPalette[Math.floor(Math.random() * colorPalette.length)],
-                        speed: Math.random() * 2 + 1,
-                        speedMultiplier: 1.5,
-                        isHuman,
-                        history: [],
-                        historyLength: Math.floor(Math.random() * 10) + 10,
-                        pulsing: true,
-                        pulseRate: Math.random() * 0.1 + 0.05,
-                        pulsePhase: Math.random() * Math.PI * 2,
-                        birthTime: now,
-                        lifespan: Math.random() * 5000 + 3000
-                    });
-                }
+                particlesRef.current.push({
+                    x: center.x + (Math.random() - 0.5) * 100,
+                    y: center.y + (Math.random() - 0.5) * 100,
+                    size: Math.random() * 4 + 3,
+                    color: colorPalette[Math.floor(Math.random() * colorPalette.length)],
+                    speed: Math.random() * 2 + 1,
+                    speedMultiplier: 1.5,
+                    isHuman,
+                    history: [],
+                    pulsing: true,
+                    pulseRate: Math.random() * 0.1 + 0.05,
+                    pulsePhase: Math.random() * Math.PI * 2,
+                    birthTime: now,
+                    lifespan: Math.random() * 5000 + 3000
+                });
             }
             
-            stateRef.current.lastUpdate = now;
+            stateRef.current.lastParticleSpawnTime = now;
         }
     }, [calculateDataMetrics]);
-    
-    // Helper function to add random particles
-    const addRandomParticles = useCallback((count, width, height) => {
-        if (!width || !height) return;
-        
-        for (let i = 0; i < count; i++) {
-            const isHuman = Math.random() > 0.5;
-            const colorPalette = isHuman ? humanColorPalette.current : aiColorPalette.current;
-            const now = Date.now();
-            
-            particlesRef.current.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                size: Math.random() * 3 + 1,
-                color: colorPalette[Math.floor(Math.random() * colorPalette.length)],
-                speed: Math.random() * 1.5 + 0.5,
-                speedMultiplier: 1,
-                isHuman,
-                history: [],
-                historyLength: Math.floor(Math.random() * 10) + 5,
-                pulsing: Math.random() > 0.6,
-                pulseRate: Math.random() * 0.05 + 0.01,
-                pulsePhase: Math.random() * Math.PI * 2,
-                birthTime: now,
-                lifespan: Math.random() * 8000 + 7000 // Longer lifespan for general particles
-            });
-        }
-    }, []);
     
     // Animation loop with enhanced visuals
     const animate = useCallback(() => {
@@ -334,8 +302,8 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
         // Get current metrics with safe defaults
         const { energy = 0.5, harmony = 0.5 } = stateRef.current || {};
         
-        // Semi-transparent background for trail effect - varies with energy
-        ctx.fillStyle = `rgba(0, 0, 0, ${0.02 + (1-energy) * 0.03})`;
+        // Re-introduce semi-transparent background for trail fade effect
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; // Adjust alpha for desired fade speed
         ctx.fillRect(0, 0, width, height);
         
         // Current time for animations
@@ -375,13 +343,13 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                 particle.x += Math.cos(angle) * effectiveSpeed;
                 particle.y += Math.sin(angle) * effectiveSpeed;
                 
-                // Store position history with length based on harmony
-                particle.history.push({ x: particle.x, y: particle.y });
-                if (particle.history.length > particle.historyLength) {
-                    particle.history.shift();
-                }
+                // Store position history with timestamp
+                particle.history.push({ x: particle.x, y: particle.y, time: now });
                 
-                // Calculate age-based opacity
+                // Time-based pruning for history - keep only last 5 seconds
+                particle.history = particle.history.filter(point => (now - point.time) <= 10000);
+                
+                // Calculate age-based opacity for the particle itself (not trail, trail fades via fillRect)
                 let ageOpacity = 1;
                 const age = now - particle.birthTime;
                 const fadeInTime = 300;
@@ -406,8 +374,8 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                     ctx.beginPath();
                     
                     try {
-                        if (harmony > 0.6 && particle.history.length > 3) {
-                            // Smooth curves for high harmony
+                        if (particle.isHuman && particle.history.length > 3) {
+                            // Smooth curves for high harmony (now specifically for Human particles)
                             ctx.moveTo(particle.history[0].x, particle.history[0].y);
                             
                             for (let i = 1; i < particle.history.length - 2; i++) {
@@ -436,7 +404,7 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                                 );
                             }
                         } else {
-                            // Simple line segments for low harmony
+                            // Simple line segments for low harmony (now for AI particles or short Human trails)
                             ctx.moveTo(particle.history[0].x, particle.history[0].y);
                             for (let i = 1; i < particle.history.length; i++) {
                                 if (!particle.history[i]) continue;
@@ -468,7 +436,14 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                     
                     // Draw particle with optional glow based on energy
                     ctx.beginPath();
-                    ctx.arc(particle.x, particle.y, particle.size * (0.7 + energy * 0.5), 0, Math.PI * 2);
+                    const particleRenderSize = particle.size * (0.7 + energy * 0.5);
+                    if (particle.isHuman) {
+                        ctx.arc(particle.x, particle.y, particleRenderSize, 0, Math.PI * 2);
+                    } else {
+                        // AI particles as squares
+                        const sideLength = particleRenderSize * 2; // Make side length diameter of equivalent circle
+                        ctx.rect(particle.x - particleRenderSize, particle.y - particleRenderSize, sideLength, sideLength);
+                    }
                     
                     // Add glow for high energy particles
                     if (energy > 0.7 && particle.size > 2) {
@@ -490,27 +465,33 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                     ctx.shadowBlur = 0;
                 }
                 
-                // Reset if out of bounds
-                if (particle.x < 0) particle.x = width;
-                if (particle.x > width) particle.x = 0;
-                if (particle.y < 0) particle.y = height;
-                if (particle.y > height) particle.y = 0;
+                // Reset if out of bounds and clear history to prevent line artifacts
+                if (particle.x < 0) {
+                    particle.x = width;
+                    particle.history = []; // Clear history on wrap
+                }
+                if (particle.x > width) {
+                    particle.x = 0;
+                    particle.history = []; // Clear history on wrap
+                }
+                if (particle.y < 0) {
+                    particle.y = height;
+                    particle.history = []; // Clear history on wrap
+                }
+                if (particle.y > height) {
+                    particle.y = 0;
+                    particle.history = []; // Clear history on wrap
+                }
             }
             
             return true;
         });
         
-        // Check if we need to replenish particles
-        if (particlesRef.current.length < 100) {
-            // Emergency replenishment if too few particles remain
-            addRandomParticles(200, width, height);
-        }
-        
         // Continue animation only if model is running
         if (isModelRunning) {
             animationRef.current = requestAnimationFrame(animate);
         }
-    }, [isModelRunning, addRandomParticles]);
+    }, [isModelRunning]);
     
     // Setup effect - start or stop animation based on isModelRunning
     useEffect(() => {
@@ -570,14 +551,42 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
         };
     }, [animate, initParticles, isModelRunning]);
     
-    // Update effect when input or output data changes, but only if running
+    // Update effect when input or output data changes
     useEffect(() => {
         if (isModelRunning) {
-            updateFlowField(inputData, outputData);
+            const inputChanged = areArraysDifferent(inputData, prevInputDataRef.current);
+            const outputChanged = areArraysDifferent(outputData, prevOutputDataRef.current);
+
+            if (inputChanged || outputChanged) {
+                updateFlowField(inputData, outputData, inputChanged, outputChanged);
+                
+                prevInputDataRef.current = Array.isArray(inputData) ? [...inputData] : inputData;
+                prevOutputDataRef.current = Array.isArray(outputData) ? [...outputData] : outputData;
+            }
+        } else {
+            prevInputDataRef.current = null;
+            prevOutputDataRef.current = null;
         }
-    }, [inputData, outputData, updateFlowField, isModelRunning]);
+    }, [inputData, outputData, isModelRunning, updateFlowField]);
     
     return <BackgroundCanvas ref={canvasRef} active={isModelRunning} />;
+};
+
+// Helper function to compare arrays (can be outside the component or memoized if preferred)
+const areArraysDifferent = (arr1, arr2) => {
+    if (!arr1 && !arr2) return false; // Both null/undefined
+    if (!arr1 || !arr2) return true;  // One is null/undefined, the other isn't
+    if (arr1.length !== arr2.length) return true;
+
+    for (let i = 0; i < arr1.length; i++) {
+        // Assuming values are numbers or simple types that can be compared with ===
+        // For floating point numbers, a threshold comparison might be more robust
+        // but for this visualization, direct comparison is likely fine.
+        if (arr1[i] !== arr2[i]) {
+            return true;
+        }
+    }
+    return false;
 };
 
 export default CreativeBackground; 

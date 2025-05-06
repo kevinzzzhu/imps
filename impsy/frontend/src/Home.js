@@ -390,7 +390,7 @@ function Home() {
                             isOtherSelected={selectedSide === 'right'} 
                             showComponent={showComponent || showTrainingVisualizer}
                         >
-                            Start a Project
+                            Step 1: Start a Project
                         </Text>
                         <SubText 
                             isVisible={isHoveredLeft || selectedSide === 'left'}
@@ -416,7 +416,7 @@ function Home() {
                             isOtherSelected={selectedSide === 'left'}
                             showComponent={showComponent || showTrainingVisualizer}
                         >
-                            Select Existing Model
+                            Step 2: Select Existing Model
                         </Text>
                         <SubText 
                             isVisible={isHoveredRight || selectedSide === 'right'}

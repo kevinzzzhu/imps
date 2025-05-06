@@ -367,9 +367,12 @@ class InteractionServer(object):
             click.secho("RNN Thread Started", fg="green")
             while True:
                 self.make_prediction(net)
+                # Process inputs for all modes, not just callresponse
+                for sender in self.senders:
+                    sender.handle()  # handle incoming inputs
+                
+                # Only do call/response monitoring in that specific mode
                 if self.config["interaction"]["mode"] == "callresponse":
-                    for sender in self.senders:
-                        sender.handle()  # handle incoming inputs
                     self.monitor_user_action()
         except KeyboardInterrupt:
             click.secho("\nCtrl-C received... exiting.", fg="red")

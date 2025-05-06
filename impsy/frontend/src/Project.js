@@ -106,11 +106,9 @@ const MainContent = styled.div`
     align-items: center;
     position: relative;
     transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
-    transform: ${props => props.expanded ? 'translateX(-100px)' : 'translateX(0)'};
+    transform: ${props => props.expanded ? 'translateX(-10%)' : 'translateX(0)'};
     margin-left: ${props => props.expanded ? 'auto' : '0'};
     margin-right: ${props => props.expanded ? 'auto' : '0'};
-    width: ${props => props.expanded ? '80%' : 'auto'};
-    max-width: ${props => props.expanded ? '1200px' : 'none'};
 `;
 
 const StatusDot = styled.div`
@@ -717,36 +715,34 @@ function Project({ onModelRunningChange }) {
             const [status, data1, data2] = event.data;
             const command = status & 0xf0; // Get command type (e.g., 0xB0 for Control Change)
 
+            // Uncomment to debug all MIDI messages (might cause console spam)
+            // console.log(`MIDI Message: status=${status.toString(16)}, data1=${data1}, data2=${data2}`);
+
             // Fix the log input values function to use dynamic dimension
             const logInputValues = (newInputData) => {
                 if (!newInputData || !Array.isArray(newInputData)) {
+                    console.log("logInputValues: Invalid data", newInputData);
                     return;
                 }
                 
-                // Use the actual dimension of the data rather than hardcoding 15
                 const dimension = newInputData.length;
-                const fixedSizeArray = newInputData.slice(0, dimension);
-                while (fixedSizeArray.length < dimension) {
-                    fixedSizeArray.push(0);
-                }
-                
-                const valuesString = fixedSizeArray.map(val => 
-                    val !== undefined ? val.toFixed(15) : '0.000000000000000'
+                // The slice and while loop for fixedSizeArray are a bit redundant if just logging.
+                // We can directly map over newInputData.
+                const valuesString = newInputData.map(val => 
+                    val !== undefined ? val.toFixed(3) : '0.000' // Using 3 decimal places
                 ).join(', ');
+                console.log(`MIDI Input Updated (dim: ${dimension}): [${valuesString}]`);
             };
 
-            // Ensure inputData is properly initialized before continuing
-            if (!inputData || !Array.isArray(inputData) || inputData.length === 0) {
+            // Ensure inputData is an array (though it should be by now due to earlier effects)
+            if (!Array.isArray(inputData)) { // Simplified check
+                console.warn("onMIDIMessage: inputData is not an array.", inputData);
                 return;
             }
 
             // Check if MIDI mapping is initialized
-            if (!midiMapping || !midiMapping.ccToIndexMap) {
-                return;
-            }
-
-            // Force the input data to be the correct dimension
-            if (inputData.length !== midiMapping.dimension) {
+            if (!midiMapping || !midiMapping.ccToIndexMap || midiMapping.dimension === 0) {
+                console.warn("onMIDIMessage: MIDI mapping not ready.", midiMapping);
                 return;
             }
 
@@ -756,54 +752,49 @@ function Project({ onModelRunningChange }) {
                 const controllerNumber = data1;
                 const controllerValue = data2;
                 const normalizedValue = controllerValue / 127.0; // Normalize to 0.0 - 1.0
-
-                // Find the target index in inputData using the map from midiMapping state
-                // Convert controllerNumber to string since Object keys are always strings
                 const ccStr = controllerNumber.toString();
                 const targetIndex = midiMapping.ccToIndexMap[ccStr];
 
-                // Fix the code in the setInputData callback to use dynamic dimension
-                setInputData(prevInputData => {
-                    // Create a copy that we'll update
-                    let tmpInputData = [...prevInputData];
-                    
-                    // Update the mapped index if it's within range
-                    if (targetIndex < midiMapping.dimension) {
-                        tmpInputData[targetIndex] = normalizedValue;
-                    }
-                    
-                    // Ensure the array has the correct dimension (trimming or padding as needed)
-                    const newInputData = tmpInputData.slice(0, midiMapping.dimension);
-                    while (newInputData.length < midiMapping.dimension) {
-                        newInputData.push(0);
-                    }
-                    
-                    // Log the updated input values
-                    logInputValues(newInputData);
-                    
-                    return newInputData;
-                });
+                if (targetIndex !== undefined) {
+                    setInputData(prevInputData => {
+                        let newArr = Array(midiMapping.dimension).fill(0);
+                        // If prevInputData was the correct MIDI dimension, copy its values.
+                        if (prevInputData && prevInputData.length === midiMapping.dimension) {
+                            newArr = [...prevInputData];
+                        }
+                        // Else, we start with a fresh zeroed array of the correct dimension.
+
+                        if (targetIndex < midiMapping.dimension) { // Ensure targetIndex is valid
+                            newArr[targetIndex] = normalizedValue;
+                        }
+                        logInputValues(newArr);
+                        return newArr;
+                    });
+                }
             } else if (command === 0x90) {
                 // Note On message
                 const noteNumber = data1;
                 const velocity = data2;
                 
-                // If velocity is 0, it's actually a note off message
-                if (velocity === 0) {
+                if (velocity === 0) { // Note Off
                     return;
                 }
                 
-                const normalizedNote = noteNumber / 127.0; // Normalize to 0.0 - 1.0
+                const normalizedNote = noteNumber / 127.0;
                 
-                // In config.toml, note_on is mapped to index 0
                 setInputData(prevInputData => {
-                    const newInputData = [...prevInputData.slice(0, midiMapping.dimension)]; // Ensure it's the right size
-                    newInputData[0] = normalizedNote;
+                    let newArr = Array(midiMapping.dimension).fill(0);
+                    if (prevInputData && prevInputData.length === midiMapping.dimension) {
+                        newArr = [...prevInputData];
+                    }
+
+                    // In config.toml, note_on is mapped to index 0
+                    if (midiMapping.dimension > 0) { // Ensure dimension is at least 1 for index 0
+                        newArr[0] = normalizedNote;
+                    }
                     
-                    // Log the updated input values
-                    logInputValues(newInputData);
-                    
-                    return newInputData;
+                    logInputValues(newArr);
+                    return newArr;
                 });
                 
             } else if (command === 0x80) {
@@ -813,21 +804,41 @@ function Project({ onModelRunningChange }) {
         };
 
         const setupMIDI = async () => {
+            // Add a small delay to ensure config is fully loaded
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             if (navigator.requestMIDIAccess) {
                 try {
                     midiAccess = await navigator.requestMIDIAccess();
-                    // Get the first available input device
-                    const inputs = midiAccess.inputs.values();
-                    for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
-                        inputDevice = input.value;
-                        break; // Use the first device found
+                    
+                    // Parse the config to get the specified MIDI device
+                    const midiInDeviceMatch = configContent.match(/in_device\s*=\s*"([^"]*)"/);
+                    const targetDeviceName = midiInDeviceMatch ? midiInDeviceMatch[1] : "Minilab3 MIDI";
+                    
+                    // Get all available input devices
+                    const inputs = Array.from(midiAccess.inputs.values());
+                    
+                    // Try to find the device specified in config
+                    const configuredDevice = inputs.find(device => 
+                        device.name.includes(targetDeviceName)
+                    );
+                    
+                    if (configuredDevice) {
+                        // Use the device specified in config
+                        inputDevice = configuredDevice;
+                        console.log(`Using configured MIDI device: ${inputDevice.name}`);
+                    } else {
+                        // Fall back to any available device if specified one not found
+                        inputDevice = inputs[0];
+                        if (inputDevice) {
+                            console.log(`Configured device "${targetDeviceName}" not found. Using: ${inputDevice.name}`);
+                        } else {
+                            console.log('No MIDI input devices found.');
+                        }
                     }
 
                     if (inputDevice) {
-                        console.log(`Using MIDI Input: ${inputDevice.name}`);
                         inputDevice.onmidimessage = onMIDIMessage;
-                    } else {
-                        console.log('No MIDI input devices found.');
                     }
 
                 } catch (error) {
@@ -836,7 +847,6 @@ function Project({ onModelRunningChange }) {
             } else {
                 console.log('Web MIDI API not supported in this browser.');
             }
-            console.log("MIDI Setup Effect: setupMIDI function finished");
         };
 
         setupMIDI();
@@ -850,6 +860,19 @@ function Project({ onModelRunningChange }) {
             }
             // Note: Closing midiAccess itself isn't standard practice or necessary
         };
+    }, [midiMapping, configContent]);
+
+    // Ensure we initialize MIDI after config is loaded and parsed
+    useEffect(() => {
+        // Wait a bit to ensure midiMapping is initialized
+        const timer = setTimeout(() => {
+            if (midiMapping.dimension > 0) {
+                console.log(`MIDI mapping initialized with dimension ${midiMapping.dimension}`);
+                console.log('MIDI CC to Index map:', midiMapping.ccToIndexMap);
+            }
+        }, 2000);
+        
+        return () => clearTimeout(timer);
     }, [midiMapping]);
 
     useEffect(() => {
