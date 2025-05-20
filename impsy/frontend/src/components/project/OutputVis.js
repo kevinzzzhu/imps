@@ -13,7 +13,7 @@ const OutputVisualization = ({data}) => {
         if (!Array.isArray(data)) return [];
         return data.map(value => {
             const num = Number(value);
-            return isNaN(num) ? 0 : Math.max(0, Math.min(1, num)); // Clamp between 0 and 1
+            return isNaN(num) ? 0 : Math.max(0, Math.min(1, num));
         });
     }, []);
 
@@ -93,7 +93,7 @@ const OutputVisualization = ({data}) => {
             .domain([0, 1])
             .range([height, 0]);
 
-        // Define vibrant, modern color palette for outputs - more saturated and brighter
+        // Define vibrant, modern color palette for outputs
         const baseColors = [
             "#FF5E5B", // Vibrant Coral
             "#FFA647", // Amber
@@ -211,7 +211,7 @@ const OutputVisualization = ({data}) => {
                         return isNaN(h) ? 0 : h;
                     })
                     .attr("fill", (d, i) => `url(#output-gradient-${i})`)
-                    .attr("rx", 3) // Rounded corners
+                    .attr("rx", 3)
                     .attr("ry", 3)
                     .style("stroke", (d, i) => d3.color(baseColors[i % baseColors.length]).darker(0.3))
                     .style("stroke-width", 1)
@@ -244,12 +244,12 @@ const OutputVisualization = ({data}) => {
             
         // Add special glow effect to bars with high values
         svg.selectAll("rect.bar")
-            .filter(d => d > 0.8) // Only bars with high values
+            .filter(d => d > 0.8)
             .style("filter", "url(#glow-effect)");
             
         // Add value indicators for significant values
         svg.selectAll(".value-indicator")
-            .data(validData.filter(d => d > 0.7)) // Only show for significant values
+            .data(validData.filter(d => d > 0.7))
             .join("circle")
             .attr("class", "value-indicator")
             .attr("cx", (d, i) => {
@@ -282,7 +282,7 @@ const OutputVisualization = ({data}) => {
                         .attr("id", pulseId)
                         .attr("attributeName", "stroke-opacity")
                         .attr("values", "0.8;1;0.8")
-                        .attr("dur", `${1 + d}s`) // Duration based on value
+                        .attr("dur", `${1 + d}s`)
                         .attr("repeatCount", "indefinite");
                         
                     // Apply the animation
@@ -295,7 +295,7 @@ const OutputVisualization = ({data}) => {
         svg.append("g")
             .attr("transform", `translate(0, ${height})`)
             .call(d3.axisBottom(xScale)
-                .tickFormat((d, i) => `O${i+1}`)) // Output labels
+                .tickFormat((d, i) => `O${i+1}`))
             .selectAll("text")
             .style("font-family", "'Helvetica Neue', Arial, sans-serif")
             .style("font-size", "10px")

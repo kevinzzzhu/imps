@@ -5,7 +5,7 @@ title = "Arturia MiniLab 3 Configuration"
 owner = "Kevin Zhu"
 description = "Configuration for the Arturia MiniLab 3"
 # Project name will be updated automatically when a new model is loaded
-project_name = "20250506-105750-20250501-21_15_27-musicMDRNN-dim15-layers2-units64-mixtures5-scale10"
+project_name = ""
 
 # Basic config
 log_input = true
@@ -15,13 +15,13 @@ verbose = true
 # Interaction Configuration
 [interaction]
 mode = "callresponse" # Can be: "callresponse", "polyphony", "battle", "useronly"
-threshold = 0.5 # number of seconds before switching in call-response mode
+threshold = 1 # number of seconds before switching in call-response mode
 input_thru = false # sends inputs directly to outputs (e.g., if input interface is different than output synth)
 
 # Model configuration
 [model]
 dimension = 15 
-file = "models/20250501-21_15_27-musicMDRNN-dim15-layers2-units64-mixtures5-scale10.keras"
+file = ""
 size = "s" # Can be one of: xs, s, m, l, xl
 sigmatemp = 0.01
 pitemp = 2
@@ -77,26 +77,4 @@ client_port = 5002 # Port of the output device
 #                             └→ WebSocket (8080) → Frontend
 
 [log]
-file = [
-  "2025-05-06T22-43-48-15d-mdrnn.log",
-  "2025-05-06T22-47-45-15d-mdrnn.log",
-  "2025-05-07T00-09-05-15d-mdrnn.log",
-  "2025-05-07T03-26-10-15d-mdrnn.log",
-  "2025-05-07T03-29-27-15d-mdrnn.log",
-  "2025-05-07T03-30-09-15d-mdrnn.log",
-  "2025-05-07T03-36-43-15d-mdrnn.log",
-  "2025-05-07T03-36-55-15d-mdrnn.log",
-  "2025-05-07T03-37-40-15d-mdrnn.log",
-  "2025-05-07T03-39-00-15d-mdrnn.log",
-  "2025-05-07T03-45-44-15d-mdrnn.log",
-  "2025-05-07T04-01-51-15d-mdrnn.log",
-  "2025-05-07T04-02-09-15d-mdrnn.log",
-  "2025-05-07T04-03-09-15d-mdrnn.log",
-  "2025-05-07T04-07-53-15d-mdrnn.log",
-  "2025-05-07T04-20-46-15d-mdrnn.log",
-  "2025-05-07T04-35-35-15d-mdrnn.log",
-  "2025-05-07T04-44-03-15d-mdrnn.log",
-  "2025-05-07T04-44-06-15d-mdrnn.log",
-  "2025-05-07T04-44-40-15d-mdrnn.log",
-  "2025-05-07T04-58-25-15d-mdrnn.log"
-]
+file = []

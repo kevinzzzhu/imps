@@ -8,7 +8,7 @@ import TimeSeriesGraph from '../logVis/TimeSeriesGraph';
 import ParallelGraph from '../logVis/ParallelGraph';
 // import ViolinGraph from '../logVis/ViolinGraph';
 // import OscillationGraph from '../logVis/OscillationGraph';
-import AreaGraph from '../logVis/AreaGraph';
+// import AreaGraph from '../logVis/AreaGraph';
 // import RadarGraph from '../logVis/RadarGraph';
 // import FunnelGraph from '../logVis/FunnelGraph';
 // import ScatterGraph from '../logVis/ScatterGraph';
@@ -798,12 +798,12 @@ const LeftSide = ({ onTrainingStart }) => {
                             >
                                 Radar View
                             </Button> */}
-                            <Button
+                            {/* <Button
                                 variant={selectedView === 'area' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('area')}
                             >
                                 Area View
-                            </Button>
+                            </Button> */}
                             {/* <Button
                                 variant={selectedView === 'funnel' ? 'contained' : 'outlined'}
                                 onClick={() => setSelectedView('funnel')}
@@ -886,14 +886,14 @@ const LeftSide = ({ onTrainingStart }) => {
                                     {logData && <RadarGraph data={logData} />}
                                 </Box>
                             )} */}
-                            {selectedView === 'area' && (
+                            {/* {selectedView === 'area' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>
                                         Area View
                                     </Typography>
                                     {logData && <AreaGraph data={logData} />}
                                 </Box>
-                            )}
+                            )} */}
                             {/* {selectedView === 'funnel' && (
                                 <Box>
                                     <Typography variant="subtitle1" style={{ color: 'white' }}>

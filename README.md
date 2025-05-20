@@ -157,10 +157,10 @@ server_port = 5000 # Port IMPSY listens on
 client_ip = "127.0.0.1" # Address of the output device
 client_port = 5002 # Port of the output device
 
-# Backend → Port 5002 → Server → Port 5003 → Device 
+# Backend → Port 5002 → Server 
 #                             └→ WebSocket (8080) → Frontend 
 
-# Device → Port 5004 → Server → Port 5000 → Backend
+# Device → Port 5004 → Server 
 #                             └→ WebSocket (8080) → Frontend 
 ```
 

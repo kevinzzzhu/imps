@@ -547,7 +547,7 @@ function Project({ onModelRunningChange }) {
         let ws = null;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
-        const reconnectInterval = 3000; // 3 seconds
+        const reconnectInterval = 3000;
         
         const connectWebSocket = () => {
             // Close existing connection if any
@@ -671,7 +671,7 @@ function Project({ onModelRunningChange }) {
                         }
                         
                         // Increment regardless of message type (note_on or control_change)
-                        if (inputIndex < dimension - 1) { // Ensure we don't exceed dimension-1
+                        if (inputIndex < dimension - 1) {
                             inputIndex++;
                         }
                     }
@@ -726,16 +726,13 @@ function Project({ onModelRunningChange }) {
                 }
                 
                 const dimension = newInputData.length;
-                // The slice and while loop for fixedSizeArray are a bit redundant if just logging.
-                // We can directly map over newInputData.
                 const valuesString = newInputData.map(val => 
-                    val !== undefined ? val.toFixed(3) : '0.000' // Using 3 decimal places
+                    val !== undefined ? val.toFixed(3) : '0.000'
                 ).join(', ');
                 console.log(`MIDI Input Updated (dim: ${dimension}): [${valuesString}]`);
             };
 
-            // Ensure inputData is an array (though it should be by now due to earlier effects)
-            if (!Array.isArray(inputData)) { // Simplified check
+            if (!Array.isArray(inputData)) {
                 console.warn("onMIDIMessage: inputData is not an array.", inputData);
                 return;
             }
@@ -751,7 +748,7 @@ function Project({ onModelRunningChange }) {
                 // Control Change messages
                 const controllerNumber = data1;
                 const controllerValue = data2;
-                const normalizedValue = controllerValue / 127.0; // Normalize to 0.0 - 1.0
+                const normalizedValue = controllerValue / 127.0; 
                 const ccStr = controllerNumber.toString();
                 const targetIndex = midiMapping.ccToIndexMap[ccStr];
 
@@ -762,9 +759,8 @@ function Project({ onModelRunningChange }) {
                         if (prevInputData && prevInputData.length === midiMapping.dimension) {
                             newArr = [...prevInputData];
                         }
-                        // Else, we start with a fresh zeroed array of the correct dimension.
 
-                        if (targetIndex < midiMapping.dimension) { // Ensure targetIndex is valid
+                        if (targetIndex < midiMapping.dimension) {
                             newArr[targetIndex] = normalizedValue;
                         }
                         logInputValues(newArr);
@@ -789,7 +785,7 @@ function Project({ onModelRunningChange }) {
                     }
 
                     // In config.toml, note_on is mapped to index 0
-                    if (midiMapping.dimension > 0) { // Ensure dimension is at least 1 for index 0
+                    if (midiMapping.dimension > 0) { 
                         newArr[0] = normalizedNote;
                     }
                     
@@ -855,14 +851,13 @@ function Project({ onModelRunningChange }) {
         return () => {
             console.log("MIDI Setup Effect: Cleaning up");
             if (inputDevice) {
-                inputDevice.onmidimessage = null; // Remove listener
+                inputDevice.onmidimessage = null;
                 console.log('MIDI listener removed.');
             }
             // Note: Closing midiAccess itself isn't standard practice or necessary
         };
     }, [midiMapping, configContent]);
 
-    // Ensure we initialize MIDI after config is loaded and parsed
     useEffect(() => {
         // Wait a bit to ensure midiMapping is initialized
         const timer = setTimeout(() => {
@@ -982,7 +977,7 @@ function Project({ onModelRunningChange }) {
                     numPerformances: response.data.stats.num_performances,
                     datasetFile: response.data.dataset_file
                 });
-                setSelectedDimension(dimension);  // Store the dimension for later use
+                setSelectedDimension(dimension);
                 setShowTrainingDialog(true);
             }
         } catch (error) {
@@ -1053,7 +1048,7 @@ function Project({ onModelRunningChange }) {
         } catch (error) {
             console.error('Failed to fetch config:', error);
         } finally {
-            setLoading(false); // Ensure loading is set to false after config fetching
+            setLoading(false);
         }
     };
 
@@ -1166,7 +1161,7 @@ function Project({ onModelRunningChange }) {
         // Get model name from config
         const modelDir = configContent.match(/file = "models\/(.*?)"/)?.[1];
         if (!modelDir) {
-            setLoading(false); // Ensure loading is set to false even if no model dir is found
+            setLoading(false);
             return;
         }
 
@@ -1205,7 +1200,7 @@ function Project({ onModelRunningChange }) {
 
     // handle log file deletion
     const handleDeleteLog = async (filename, event) => {
-        event.stopPropagation(); // Prevent log selection when clicking delete
+        event.stopPropagation();
         
         if (window.confirm(`Are you sure you want to delete ${filename}?`)) {
             try {

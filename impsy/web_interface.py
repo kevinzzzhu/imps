@@ -1,3 +1,5 @@
+"""impsy.web_interface: RESTFUL APIs and functions for the web interface."""
+
 from flask import Flask, request, send_file, send_from_directory, jsonify, Response, stream_with_context
 from werkzeug.utils import secure_filename
 import click

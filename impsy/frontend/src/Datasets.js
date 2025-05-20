@@ -6,7 +6,7 @@ function Datasets() {
   const [datasets, setDatasets] = useState([]);
   const [messages, setMessages] = useState([]);
   const [newDataset, setNewDataset] = useState('');
-  const [dimension, setDimension] = useState(2); // default dimension
+  const [dimension, setDimension] = useState(2);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

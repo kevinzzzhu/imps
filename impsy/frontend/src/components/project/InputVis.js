@@ -11,7 +11,7 @@ const InputVisualization = ({data}) => {
         return inputData.map(value => {
             const num = parseFloat(value);
             if (isNaN(num)) return 0;
-            return Math.max(0, Math.min(1, num)); // Clamp between 0 and 1
+            return Math.max(0, Math.min(1, num));
         });
     }, []);
 
@@ -37,7 +37,7 @@ const InputVisualization = ({data}) => {
         const validData = validateData(data);
         const validPrevData = validateData(previousData);
         
-        // Create scales - even with empty data, we still want axes
+        // Create scales
         const xScale = d3.scaleBand()
             .domain(d3.range(validData.length || 1))
             .range([0, width])
@@ -47,7 +47,7 @@ const InputVisualization = ({data}) => {
             .domain([0, 1])
             .range([height, 0]);
 
-        // Create a beautiful color palette - softer, more elegant
+        // Create a beautiful color palette
         const baseColors = [
             "#CC4B4A", // Dimmed Coral
             "#D08A3C", // Dimmed Amber
@@ -140,7 +140,7 @@ const InputVisualization = ({data}) => {
             )
             .style("stroke-dasharray", "3,3")
             .style("opacity", 0.2)
-            .style("pointer-events", "none"); // This ensures the grid doesn't interfere with interactions
+            .style("pointer-events", "none");
 
         // Add rectangles with error handling
         if (validData.length > 0) {
@@ -208,11 +208,11 @@ const InputVisualization = ({data}) => {
 
         // Add X and Y axes with improved styling
         const xAxis = d3.axisBottom(xScale)
-            .tickFormat((d, i) => `P${i+1}`); // Parameter labels
+            .tickFormat((d, i) => `P${i+1}`);
         
         const yAxis = d3.axisLeft(yScale)
             .ticks(5)
-            .tickFormat(d3.format(".0%")); // Format as percentage
+            .tickFormat(d3.format(".0%"));
 
         // Add axes LAST (so they're always on top)
         svg.append("g")
@@ -264,7 +264,7 @@ const InputVisualization = ({data}) => {
         return () => {
             window.removeEventListener('resize', handleResize);
         };
-    }, [data, updateChart]); // Add updateChart to dependency array
+    }, [data, updateChart]);
 
     return <svg ref={ref}></svg>;
 };

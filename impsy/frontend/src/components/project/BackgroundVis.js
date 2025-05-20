@@ -17,8 +17,8 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
     const animationRef = useRef(null);
     const particlesRef = useRef([]);
     const flowFieldRef = useRef([]);
-    const prevInputDataRef = useRef(null); // To store previous inputData
-    const prevOutputDataRef = useRef(null); // To store previous outputData
+    const prevInputDataRef = useRef(null);
+    const prevOutputDataRef = useRef(null);
     const stateRef = useRef({
         energy: 0.5,
         harmony: 0.5,
@@ -44,7 +44,6 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
         'rgba(231, 76, 60, 0.5)'   // Red
     ]);
     
-    // Initialize particles with more variety
     const initParticles = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -64,9 +63,8 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
             flowFieldRef.current[i] = Math.random() * Math.PI * 2;
         }
         
-        // Initialize particles with more properties
         particlesRef.current = [];
-        const numParticles = 700; // More particles for richer visual
+        const numParticles = 700;
         
         for (let i = 0; i < numParticles; i++) {
             const isHuman = Math.random() > 0.5;
@@ -85,17 +83,15 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                 pulseRate: Math.random() * 0.05 + 0.01,
                 pulsePhase: Math.random() * Math.PI * 2,
                 birthTime: Date.now(),
-                lifespan: Math.random() * 10000 + 5000 // Particles have limited lifespans
+                lifespan: Math.random() * 10000 + 5000
             });
         }
     }, []);
     
-    // Calculate data metrics for more dynamic visualization
     const calculateDataMetrics = useCallback((inputData, outputData) => {
         const validInputData = Array.isArray(inputData) ? inputData.filter(v => !isNaN(v)) : [];
         const validOutputData = Array.isArray(outputData) ? outputData.filter(v => !isNaN(v)) : [];
         
-        // Default values if we don't have valid data
         let energy = 0.5;
         let harmony = 0.5;
         
@@ -109,7 +105,6 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                 ? validOutputData.reduce((sum, v) => sum + v, 0) / validOutputData.length 
                 : 0;
                 
-            // If we have both, average them, otherwise use whichever we have
             if (validInputData.length > 0 && validOutputData.length > 0) {
                 energy = (inputAvg + outputAvg) / 2;
             } else if (validInputData.length > 0) {
@@ -168,7 +163,7 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
 
         const centers = [];
         let inputCenterCount = 0;
-        if (inputActuallyChanged) { // Only create input centers if input data changed
+        if (inputActuallyChanged) { 
             activeInputData.forEach((val, i) => {
                 if (val > 0.2) {
                     centers.push({
@@ -183,7 +178,7 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
         }
         
         let outputCenterCount = 0;
-        if (outputActuallyChanged) { // Only create output centers if output data changed
+        if (outputActuallyChanged) {
             activeOutputData.forEach((val, i) => {
                 if (val > 0.2) {
                     centers.push({
@@ -199,8 +194,8 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
 
         // Map data to influence flow field
         // This part will now use the potentially fewer (or zero) centers
-        for (let y_coord = 0; y_coord < rows; y_coord++) { // Renamed y to y_coord to avoid conflict
-            for (let x_coord = 0; x_coord < cols; x_coord++) { // Renamed x to x_coord
+        for (let y_coord = 0; y_coord < rows; y_coord++) {
+            for (let x_coord = 0; x_coord < cols; x_coord++) {
                 const index = y_coord * cols + x_coord;
                 let angle = flowFieldRef.current[index];
                 const px = x_coord * resolution;
@@ -259,7 +254,7 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
         // and enough time has passed since the last generation.
         if (timeSinceLastSpawn > 1000 && centers.length > 0) {
             // Create new particles around active centers
-            const numNewParticles = Math.floor(energy * 20); // More energy = more particles
+            const numNewParticles = Math.floor(energy * 20);
             
             for (let i = 0; i < numNewParticles; i++) {
                 const center = centers[Math.floor(Math.random() * centers.length)];
@@ -303,7 +298,7 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
         const { energy = 0.5, harmony = 0.5 } = stateRef.current || {};
         
         // Re-introduce semi-transparent background for trail fade effect
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; // Adjust alpha for desired fade speed
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; 
         ctx.fillRect(0, 0, width, height);
         
         // Current time for animations
@@ -412,9 +407,8 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                             }
                         }
                     } catch (err) {
-                        // Reset history if we encounter an error
                         particle.history = [];
-                        return true; // Keep the particle but reset its history
+                        return true; 
                     }
                     
                     // Parse the color to add gradient with transparency
@@ -441,7 +435,7 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                         ctx.arc(particle.x, particle.y, particleRenderSize, 0, Math.PI * 2);
                     } else {
                         // AI particles as squares
-                        const sideLength = particleRenderSize * 2; // Make side length diameter of equivalent circle
+                        const sideLength = particleRenderSize * 2;
                         ctx.rect(particle.x - particleRenderSize, particle.y - particleRenderSize, sideLength, sideLength);
                     }
                     
@@ -468,19 +462,19 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                 // Reset if out of bounds and clear history to prevent line artifacts
                 if (particle.x < 0) {
                     particle.x = width;
-                    particle.history = []; // Clear history on wrap
+                    particle.history = [];
                 }
                 if (particle.x > width) {
                     particle.x = 0;
-                    particle.history = []; // Clear history on wrap
+                    particle.history = [];
                 }
                 if (particle.y < 0) {
                     particle.y = height;
-                    particle.history = []; // Clear history on wrap
+                    particle.history = [];
                 }
                 if (particle.y > height) {
                     particle.y = 0;
-                    particle.history = []; // Clear history on wrap
+                    particle.history = [];
                 }
             }
             
@@ -508,7 +502,7 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                 
                 // Scale context to maintain correct dimensions
                 const ctx = canvas.getContext('2d');
-                if (!ctx) return; // Exit if we can't get context
+                if (!ctx) return;
                 
                 ctx.scale(dpr, dpr);
                 
@@ -517,7 +511,7 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
                     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
                 } else {
                     // Initialize particles when starting
-                    particlesRef.current = []; // Reset particles
+                    particlesRef.current = [];
                     initParticles();
                     // Fill with black to start fresh
                     ctx.fillStyle = 'black';
@@ -574,14 +568,11 @@ const CreativeBackground = ({ inputData, outputData, isModelRunning }) => {
 
 // Helper function to compare arrays (can be outside the component or memoized if preferred)
 const areArraysDifferent = (arr1, arr2) => {
-    if (!arr1 && !arr2) return false; // Both null/undefined
-    if (!arr1 || !arr2) return true;  // One is null/undefined, the other isn't
+    if (!arr1 && !arr2) return false;
+    if (!arr1 || !arr2) return true;
     if (arr1.length !== arr2.length) return true;
 
     for (let i = 0; i < arr1.length; i++) {
-        // Assuming values are numbers or simple types that can be compared with ===
-        // For floating point numbers, a threshold comparison might be more robust
-        // but for this visualization, direct comparison is likely fine.
         if (arr1[i] !== arr2[i]) {
             return true;
         }
