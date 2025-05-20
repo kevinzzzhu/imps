@@ -1,0 +1,238 @@
+Initial Codes
+P1 Q1
+1.	Brand new system experience
+2.	Feeling of exploration
+P1 Q2
+3.	Positive overall but UI needs more color
+4.	Colorfulness linked to improvisation diversity
+P1 Q3
+5.	Very easy to use quickly
+6.	Terminology unclear; needs glossary
+P1 Q4
+7.	Immersive AI interaction
+8.	Positive emotional response toward AI
+P1 Q5
+9.	Informative interface yet lacks tutorial
+10.	Requires explanation of domain terms
+P1 Q6
+11.	AI repeats same sequence; lacks diversity
+12.	User attempts adaptive improvisation with AI
+13.	Repetitive AI sequences break creative flow
+P1 Q7
+14.	Input/output visualization appreciated
+15.	Bar–controller mapping ambiguity frustrates
+16.	Mapping legend absent
+P1 Q8
+17.	Minimalist display praised
+18.	Functions need clearer documentation
+P1 Q9
+19.	AI should be more stylish than anticipated
+20.	AI under creative expectations
+P1 Q10
+21.	AI lacks emotional nuance for production
+22.	Serves as idea generator when stuck
+23.	Not suited for professional production contexts
+24.	Limited to ideation, not production
+P1 Q11
+25.	Overall positive system impression
+P1 Q12
+26.	Mapping discovery via trial and error
+ 
+P2 Q1
+27.	High tech and cool impression
+28.	Novelty motivates engagement
+29.	Coolness factor drives curiosity
+P2 Q2
+30.	Tutorial enables mastery in five minutes
+31.	Rapid onboarding experience
+32.	Five minute mastery fosters confidence
+P2 Q3
+33.	Hidden buttons hinder discoverability
+34.	Peer assistance compensates for UX gaps
+35.	Hidden UI elements increase reliance on help
+P2 Q4
+36.	Interface aesthetics praised
+37.	Visual design elevates experience
+38.	Aesthetic pleasure enhances engagement
+39.	Beautiful interface praised repeatedly
+P2 Q5
+40.	Clear action labels (e.g., "train model")
+41.	Distinct commands aid learnability
+42.	Clear labels reduce errors
+43.	Command examples facilitate learning
+P2 Q6
+44.	AI didn’t influence creativity; random play
+45.	Creativity unaffected by system
+46.	Creativity autonomy retained
+P2 Q7
+47.	Logs considered clearest feedback
+48.	Prefers quantitative log data for insight
+49.	Log transparency builds user confidence
+P2 Q8
+50.	"Next step" button too subtle
+51.	Suggest bottom right placement for CTA
+52.	Button placement influences workflow
+53.	Navigation improvement suggested
+P2 Q9
+54.	Short trial insufficient for value judgment
+55.	Long term usefulness uncertain
+56.	Need extended testing for evaluation
+P2 Q10
+57.	Unsure system can create desired music
+58.	Capability uncertainty due to limited familiarity
+59.	Music quality uncertainty persists
+P2 Q11
+60.	Knows basic functions; needs practice
+61.	Time required to gain proficiency
+62.	Function familiarity incomplete
+P2 Q12
+63.	Beautiful UI inspires continued use
+64.	Command clarity reduces cognitive load
+P2 Q13
+65.	Pretrained model requested for beginners
+66.	Beginner support via pretrained examples
+67.	Pretraining lowers entry barrier
+ 
+P3 Q1
+68.	Prototype incomplete yet approachable
+69.	Clean layout aids comprehension
+P3 Q2
+70.	Brief tutorial balances guidance and autonomy
+71.	Tutorial sufficient for both system and instrument
+P3 Q3
+72.	Initial mentorship accelerates independence
+73.	Guidance recommended for first time users
+P3 Q4
+74.	Appeals to musically trained users
+75.	Encourages exploratory play
+P3 Q5
+76.	Color reactive visuals delight users
+77.	Visual feedback motivates exploration
+78.	Color feedback motivates continued exploration
+P3 Q6
+79.	Audio visual sync clarifies cause effect
+80.	Visual confirmation reinforces learning
+81.	Visual auditory sync improves learning curve
+P3 Q7
+82.	Minimalist design highlights colors
+83.	Colors pop due to clean interface
+P3 Q8
+84.	Suggest musical note icons for intuitiveness
+85.	Dot line icons perceived abstract
+86.	Iconography impacts intuitiveness
+P3 Q9
+87.	Bar meaning obscured; mapping unclear
+88.	Hard to link AI output to performance
+89.	Ambiguous bar representation hinders mapping
+P3 Q10
+90.	Tutorial produces intuitive feel
+P3 Q11
+91.	Overall clarity and ease of use
+P3 Q12
+92.	Step by step guide desired
+93.	Sequential instructions requested
+P3 Q13
+94.	Watching colors respond is fun
+95.	Visual stimulus increases fun factor
+P3 Q14
+96.	Input output visualization deemed clearest
+97.	Visualization clarity crucial
+P3 Q15
+98.	Logs superior for AI insight
+99.	Logs aid technical comprehension
+P3 Q16
+100.	Envisions live interactive use
+P3 Q17
+101.	Wants to test AI prediction fidelity
+102.	Curious about AI prediction accuracy
+ 
+P4 Q1
+103.	Straightforward for non musicians
+104.	Accessibility highlighted
+105.	Non musical users welcomed
+P4 Q2
+106.	System learnable in five minutes
+P4 Q3
+107.	Self learning feasible in ten minutes
+108.	Learning timing depends on assistance
+P4 Q4
+109.	AI unimpressive with random input
+110.	Performance depends on musical input quality
+111.	Random input limits AI showcase
+P4 Q5
+112.	Fun despite AI limitations
+113.	System intrigue noted
+P4 Q6
+114.	Musical background needed to interpret AI
+115.	Need musical literacy to decode AI
+P4 Q7
+116.	Visual comparison aids understanding
+117.	Comparative visualization clarifies differences
+P4 Q8
+118.	System concise and well structured
+P4 Q9
+119.	Additional time needed for mastery
+P4 Q10
+120.	Potential time saver in live setups
+121.	Live scenario efficiency valued
+P4 Q11
+122.	Enjoyment independent of expertise level
+P4 Q12
+123.	Visually pleasing interface
+124.	Visual enjoyment enhances satisfaction
+P4 Q13
+125.	Visualizations enhance cognition
+P4 Q14
+126.	Reinforces time saving potential
+ 
+P5 Q1
+127.	Color scheme draws interest
+128.	Two clear starting options provided
+P5 Q2
+129.	Action based UI shortens onboarding
+P5 Q3
+130.	Tutorial or video would ease first time use
+131.	Ten minute or more learning curve estimated
+132.	Tutorial as onboarding accelerator
+P5 Q4
+133.	Call correspond mode strengthens feedback
+134.	Users feel connected to music
+135.	Positive feedback loop encourages play
+P5 Q5
+136.	Enjoys observing AI reactions and outputs
+P5 Q6
+137.	Predictive logic unclear; explanation needed
+138.	Uncertainty about AI prediction process
+139.	Predictive opacity hampers trust
+P5 Q7
+140.	Visualization clarifies AI processing
+P5 Q8
+141.	Parameter meanings unclear to user
+142.	Suggest listing parameters for clarity
+P5 Q9
+143.	Desires brief qualitative feedback from AI
+144.	Feedback examples: "fast", "slow", "happy"
+P5 Q10
+145.	Click sound effects would enhance interaction
+146.	Audio cues improve feedback
+147.	Sound feedback proposed for clicks
+P5 Q11
+148.	Usage increases after understanding feedback
+149.	Concept valued positively
+150.	Understanding feedback drives adoption
+P5 Q12
+151.	AI could transition from tutor to partner
+152.	Pretrained models beneficial for novices
+153.	Tutor to partner progression anticipated
+P5 Q13
+154.	Prototype perceived as straightforward
+155.	"Start" click launches journey
+P5 Q14
+156.	Reiterates need for AI process explanation
+P5 Q15
+157.	Full understanding prerequisite for regular use
+158.	Emphasizes importance of quality feedback
+P5 Q16
+159.	Performer wants to showcase AI collaboration
+160.	Audience demonstration perceived as cool
+

@@ -1,0 +1,78 @@
+Participant Quotes (72 quotes in total)
+P1 (12 quotes)
+1.	Never use this kind of system before, it is a brand new experience. 
+2. 	I think it is good but can improve the UI design and interface by making it more colorful (diverse when improvisation).
+3.	About two minutes during the session—it’s very easy to use, but the terminology isn’t clear, so I might need someone to help explain.
+4.	Immersive experience playing with AI; overall a good experience.
+5.	Very informative and easy to use with good UI design, but it might be better to have somewhere explaining terms and a tutorial for the entire process.
+6.	I tried to match the AI and let it improvise with me in the first few minutes, but it kept repeating the same sequence with no diversity, which wasn’t quite satisfying.
+7.	I like the input/output display, but I don’t actually know which bar corresponds to which controller.
+8.	It’s good overall—no extra displays expected—and already informative enough, but still needs improvements to explain functions.
+9.	The AI performs more diversely and in a more stylish way than I anticipated.
+10.	As a musician, I wouldn’t use it for main production because the AI doesn’t express the emotion I want—I might use it only when I run out of ideas.
+11.	Overall, I think it’s a good system and a positive experience.
+12.	I don’t know which bar maps to which controller, so I have to try each one to figure it out.
+P2 (13 quotes)
+1.	High-tech. It is cool.
+2.	Took me around five minutes during the session with the tutorial to understand most functions.
+3.	I needed someone’s help because some buttons aren’t obvious and I didn’t know what to click next.
+4.	The interface is beautifully made.
+5.	Some commands are clear, like “train model” and “start the project.”
+6.	I don’t think it influenced my creative decisions; I was just playing music randomly.
+7.	The logs are the clearest part, and the input/output view is most useful.
+8.	Make the “next step” button more obvious—personally, I’d put it at the bottom right corner.
+9.	I’m not sure about longer-term use—the time in this experiment was too short.
+10.	I’m not familiar enough to know if the system can create the music I want.
+11.	I know most of the functions, but I will need time to become familiar.
+12.	The interface is beautiful, and some commands are clear, like “train model” and “start the project.”
+13.	Maybe pretrained model for beginners to experience well trained model.
+P3 (17 quotes)
+1.	Prototype isn’t the whole thing, but it’s very clean—especially for someone new; it’s pretty easy to understand and play with.
+2.	A brief tutorial at the start is sufficient time to learn both the system and the instrument.
+3.	It’d be good if someone guides you initially—after that, you can definitely operate it by yourself.
+4.	If you know music well, this would be an interesting setup to explore and play with.
+5.	It was fun watching the colors and how they respond.
+6.	You hear the sound and visually it syncs in some way, so you see how your playing affects the visuals.
+7.	The interface is very clean, so the colors really pop.
+8.	It’d be fun if there were musical-note icons instead of just dots and lines.
+9.	I don’t know what each bar on the keyboard represents, so it’s hard to relate the AI output to my performance.
+10.	Overall, it feels intuitive once you’ve run through the tutorial.
+11.	It’s very clean; it’s pretty easy to understand and play with it. Everything's pretty clear to what you're doing.
+12.	It’d be good if there were step-by-step instructions to guide you through.
+13.	It was fun looking at the colors and how they respond.
+14.	I think the input and output be the clearest in terms of visualization.
+15.	In terms of how the AI perceive or process I guess log is probably clearer than input and output.
+16.	If I were to be an artist, it would be fun to look at it in a live studio, live context where you are interactive. Because this is interactive. So, it would be fun to see how it would be live in a live context rather than studio.
+17. 	I think it'd be fun if like music and stuff and if you can really play around with it, it would be interesting to, just look at the performance of the AI prediction and stuff.
+P4 (14 quotes)
+1.	It’s pretty clear and straightforward for someone with no musical background like me.
+2.	I learned the system in about five minutes and could figure it out by the end.
+3.	If I hadn’t been helped the first time, it would’ve taken longer, maybe around ten minutes, but I’d figure it out by the end.
+4.	The AI model wasn’t that impressive—probably because I played randomly without piano experience.
+5.	It looks fun and is quite intriguing.
+6.	I didn’t really connect the AI output with my playing; you need some musical background to get it.
+7.	The visualizations are very helpful; comparing my output with the AI’s was the most useful.
+8.	Overall, the system appears concise and well-structured.
+9.	You need more time to get fully familiar with this system.
+10.	If I were doing live music, it would definitely help save time.
+11.	It was pretty fun, even though I had no idea what I was doing.
+12.	It just looks fun.
+13.	The visualizations are very helpful; they allowed me to better understand what the system was doing.
+14.	If I were doing live music, the system would definitely be helpful and save time.
+P5 (16 quotes)
+1.	The color design is good and attracts interest with two main options to choose from.
+2.	All on-screen text is an action—click “start” and the user begins the journey.
+3.	It might take about ten minutes to learn the prototype; a tutorial page or video tutorial would simplify that first-time experience.
+4.	I felt connected to the music; under “call correspond” mode, I got good feedback.
+5.	When the AI plays music, I like seeing how it reacts and what it outputs.
+6.	Looking at the data, I had no idea how the AI would predict or how I would respond—having a brief explanation would help.
+7.	The visualization clearly shows the AI processing my input.
+8.	I had no clue what the parameters specify; listing them would help users understand how the data works together.
+9.	After playing, it would be nice if the AI offered a brief feedback—e.g. “fast,” “slow,” “happy,” or “not.”
+10.	Adding click-sound effects would improve interaction feedback.
+11.	I’d use the system more once I fully understand its feedback; it’s a great idea.
+12.	The AI could serve as a tutor first, then as a creative partner, giving a good experience for users without a music background, maybe pretrained model.
+13.	The first impression of this prototype is that it’s straightforward—all the text is an action, so click “start” and begin.
+14.	When I saw the data, I had no idea how the AI would predict or how I should respond—having a brief explanation would help.
+15. 	I would use the system when I fully—like 200%—understand how the system works, how the AI works, and if I have good feedback on the proposal with the AI, I would like to use it.”
+16.	If I’m a performer, I would like to show my audience how AI works with my creation, and that would be really cool.”

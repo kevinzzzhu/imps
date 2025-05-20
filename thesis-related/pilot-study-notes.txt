@@ -1,0 +1,43 @@
+Participant Notes - IMPSY Pilot Study
+
+---
+Participant ID: P1 (Programmer, No Music BG)
+---
+
+Old IMPSY:
+- Effectiveness: Confusing connection input -> AI output. Server/UI separation + terminal = clunky. Hard to train model.
+- Efficiency: Workflow unclear. ML jargon (ok for me, barrier for others?). No progress indicators for training = "is it working or crashed?"
+- Satisfaction: Frustrating. "Tool for researchers, not for play." Lack of visual feedback.
+
+New Prototypes (Paper & Figma):
+- Effectiveness: Figma clearer for navigation, starting jam. Real-time AI response/predictability still a ?. ML for music needs more intuitive embedding.
+- Efficiency: Streamlined navigation, fewer clicks. Some screens "information overload?" Suggests "advanced toggle".
+- Satisfaction: Figma "huge step up" - cleaner, inviting. Less intimidated, "good guide -> could get into it." Visuals helpful, "interactive ones key."
+
+---
+Participant ID: P2 (Guitar Hobbyist, Mod Music BG)
+---
+
+Old IMPSY:
+- Effectiveness: "Guitarist, not AI expert." Training terms confusing. Hard to make AI understand *my* style. Setup/terminal issues.
+- Efficiency: Long time for useful musical output. Training "laborious, not intuitive." Unsure if learning correctly.
+- Satisfaction: "Frustrating. Wanted to make music, not debug." "Technical, not inspiring for musician."
+
+New Prototypes (Paper & Figma):
+- Effectiveness: Paper easy for basics. Figma "promising for jamming!" Starting session straightforward. Needs "clearer steps to teach AI scale/riff without PhD in ML."
+- Efficiency: Quicker to start. Figma flow good. Some screens "busy," but main nav simpler.
+- Satisfaction: "Much more like it!" Figma "looks like something I'd use," "feels more like musical instrument." Less stuck. "Step-by-step guide brilliant." Potential for engagement high. Visuals need to be dynamic, music-linked.
+
+---
+Participant ID: P3 (Financial Analyst, No Music/Limited Tech BG)
+---
+
+Old IMPSY:
+- Effectiveness: "Quite lost." Didn't understand settings/effect on music. AI response unclear. Jargon = "big barrier."
+- Efficiency: "A lot of time trying to figure out what to do next." Multi-step processes confusing, error-prone.
+- Satisfaction: "Complicated, not rewarding." Clunky UI, no clear feedback. "Wouldn't use again."
+
+New Prototypes (Paper & Figma):
+- Effectiveness: Cleaner, easier to look at. Basic nav in Figma understood. Still unsure "what AI is doing / how input shapes output." Needs to be "very clear."
+- Efficiency: Simpler flow to start. Some screens "lot of info not relevant for beginner." "Fewer steps for common actions."
+- Satisfaction: "Looks nicer," less overwhelmed (esp. after walkthrough). "Detailed guide 'Step 1, Step 2' essential." AI co-creation "still abstract" - needs tangible benefits, ease of use. Visuals potentially confusing without context/interaction.

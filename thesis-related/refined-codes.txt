@@ -1,0 +1,89 @@
+Refined Codes with Explanations
+RC1: Novel system and exploratory feeling
+Explanation: Users consistently describe the system as something they’ve never encountered before, sparking curiosity and a sense of discovery.
+Merged initial codes: IC1, IC2, IC27, IC28, IC29, IC75, IC77, IC78, IC127, IC160
+RC2: Need for more vibrant visual design
+Explanation: One participant wants a more vibrant or colourful UI, believing richer visuals would energise improvisation.
+Merged initial codes: IC3, IC4
+RC3: Clean aesthetic and attractive interface
+Explanation: A minimalist, well‑polished interface is frequently praised for keeping the focus on music‑making.
+Merged initial codes: IC17, IC36, IC37, IC38, IC39, IC63, IC69, IC82, IC83, IC123, IC127
+RC4: Quick onboarding and ease of use
+Explanation: Brief tutorials and intuitive controls help users get up and running within minutes.
+Merged initial codes: IC5, IC30, IC31, IC32, IC91, IC106, IC107, IC131
+RC5: Documentation and terminology gaps
+Explanation: Many think that ambiguous jargon and scarce help screens cause confusion, highlighting a need for glossaries or tutorials.
+Merged initial codes: IC6, IC9, IC10, IC18, IC92, IC130, IC132, IC137, IC156
+RC6: Log transparency aids understanding
+Explanation: Technical logs offer behind‑the‑scenes insight and boost user trust when available.
+Merged initial codes: IC47, IC48, IC49, IC98, IC99
+RC7: Unclear AI prediction undermines trust
+Explanation: When the AI’s prediction logic feels opaque, confidence drops; transparency features are requested.
+Merged initial codes: IC59, IC87, IC101, IC102, IC137, IC138, IC139, IC141
+RC8: Rich visual feedback enhances understanding
+Explanation: Dynamic colour changes and real‑time visualisations help users understand cause‑and‑effect relationships.
+Merged initial codes: IC14, IC76, IC77, IC78, IC79, IC80, IC81, IC96, IC97, IC116, IC117, IC125, IC140
+RC9: Ambiguous mapping between controls and output
+Explanation: Participants struggle to link physical controls or bars to resulting sounds, hampering fluid interaction, hoping system to support musical instrument drivers.
+Merged initial codes: IC15, IC16, IC26, IC54, IC67, IC87, IC89
+RC10: Navigation issues with hidden or poorly placed controls
+Explanation: One participant mentioned hidden buttons or poorly placed CTAs slow workflows; clearer affordances are needed.
+Merged initial codes: IC33, IC34, IC35, IC50, IC51, IC52, IC53
+RC11: AI output repetitive or lacking emotion
+Explanation: Some participants criticise repetitive motifs or lack of emotional depth in the AI’s output.
+Merged initial codes: IC11, IC13, IC19, IC20, IC21, IC88, IC109, IC110, IC111
+RC12: Potential for live performance efficiency and inspiration
+Explanation: The tool shines as an idea‑spark for jams and sketches rather than final‑mix production.
+Merged initial codes: IC22, IC23, IC24, IC100, IC120, IC121, IC126
+RC13: Beginner support via pretrained models or "tutor AI"
+Explanation: Novices ask for pretrained models or tutor modes so they can produce music without deep setup.
+Merged initial codes: IC65, IC66, IC67, IC152, IC151, IC153
+RC14: Need multimodal interaction cues
+Explanation: One participant mentioned multi‑modal cues—like click sounds or textual tags—would make interactions more self‑explanatory.
+Merged initial codes: IC143, IC144, IC145, IC146, IC147, IC155
+RC15: System is fun and engaging
+Explanation: System is fun and engaging.
+Merged initial codes: IC18, IC60, IC62, IC94, IC95, IC112, IC113, IC122, IC124, IC136
+RC16: Users maintain creative autonomy and do not feel connected
+Explanation: Some users prefer the AI to act strictly as an assistant, keeping their creative control intact.
+Merged initial codes: IC12, IC13, IC44, IC45, IC46, IC70
+RC17: Incremental guidance accelerates learning
+Explanation: Guided, step‑by‑step flows or mentor overlays could flatten the learning curve.
+Merged initial codes: IC70, IC72, IC73, IC93, IC108
+RC18: Multiple clear entry points appreciated
+Explanation: Prominent, clearly labelled ‘Start’ or ‘Jam’ buttons give newcomers confidence to dive in.
+Merged initial codes: IC128, IC129
+RC19: Call‑and‑response mode deepens musical connection
+Explanation: A call‑and‑response mode fosters a sense of musical dialogue between human and AI.
+Merged initial codes: IC133, IC134
+RC20: System concise and well‑structured
+Explanation: System concise and well‑structured.
+Merged initial codes: IC68, IC103, IC118, IC154
+RC21: Users require extended exposure to master system
+Explanation: Participants feel mastery and trust will only come after longer‑term, repeated use.
+Merged initial codes: IC55, IC56, IC57, IC61, IC119
+RC22: Audience demonstration viewed as appealing
+Explanation: Live demonstrations to audiences are viewed as novel and potentially impressive.
+Merged initial codes: IC111, IC159, IC160
+RC23: Non‑musicians find system accessible
+Explanation: Even users without musical training feel empowered to create sounds quickly.
+Merged initial codes: IC103, IC104, IC105
+RC24: Overall positive emotional response towards AI
+Explanation: Positive emotional reactions indicate that users connect with the AI’s sonic output on a personal level.
+Merged initial codes: IC7, IC8, IC25
+RC25: Clear command labelling improves learnability
+Explanation: Consistent, descriptive labels like ‘Train Model’ reduce errors and accelerate learning.
+Merged initial codes: IC40, IC41, IC42, IC43, IC64
+RC26: Musical expertise influences perceived usefulness
+Explanation: Users with formal musical training set higher creative expectations, pushing the system’s limits. While users with limit musical knowledge could still enjoy playing.
+Merged initial codes: IC74, IC114, IC115
+RC27: Need clarity on parameter definitions
+Explanation: Undefined parameter names confuse users; tooltips or glossaries are requested.
+Merged initial codes: IC141, IC142
+RC28: Quality of system feedback impacts adoption
+Explanation: High‑quality, immediate feedback heavily influences whether users will keep engaging with the system.
+Merged initial codes: IC135, IC148, IC149, IC150, IC157, IC158
+RC29: Need intuitive iconography for visualization
+Explanation: One participant mentioned that intuitive iconography could better help understanding the system.
+Merged initial codes: IC84, IC85, IC86
+
